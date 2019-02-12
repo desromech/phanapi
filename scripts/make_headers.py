@@ -180,7 +180,7 @@ class MakeHeaderVisitor:
 
     def emitIcdInterface(self, fragment):
         self.printLine('/* Installable client driver interface. */')
-        self.printLine('typedef struct _agpu_icd_dispatch {')
+        self.printLine('typedef struct _${TypePrefix}icd_dispatch {')
         self.printLine('\tint icd_interface_version;')
         self.icdInc.write('10')
         for function in fragment.globals:
@@ -192,7 +192,7 @@ class MakeHeaderVisitor:
                 self.printLine('\t$FunctionPrefix${FunctionName}_FUN $FunctionPrefix${FunctionName};', FunctionName = method.cname)
                 self.icdInc.write(self.processText(',\n$FunctionPrefix${FunctionName}', FunctionName = method.cname))
 
-        self.printLine('} agpu_icd_dispatch;')
+        self.printLine('} ${TypePrefix}icd_dispatch;')
 
     def emitFragment(self, fragment):
         # Emit the types
@@ -242,8 +242,9 @@ class MakeHeaderVisitor:
 if __name__ == '__main__':
     if len(sys.argv) < 3:
         print "make-headers <definitions> <output dir>"
-    api = ApiDefinition.loadFromFileNamed(sys.argv[1])
-    with open(sys.argv[2] + '/' + api.headerFileName, 'w') as out:
-        with open(sys.argv[2] + '/agpu_icd.10.inc', 'w') as out2:
-            visitor = MakeHeaderVisitor(out, out2)
-            api.accept(visitor)
+    else:
+        api = ApiDefinition.loadFromFileNamed(sys.argv[1])
+        with open(sys.argv[2] + '/' + api.headerFileName, 'w') as out:
+            with open(sys.argv[2] + '/' + api.getBindingProperty('C', 'icdIncludeFile'), 'w') as out2:
+                visitor = MakeHeaderVisitor(out, out2)
+                api.accept(visitor)

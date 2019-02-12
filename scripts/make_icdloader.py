@@ -5,10 +5,12 @@ import sys
 from definition import *
 from string import Template
 
+
 # Converts text in 'CamelCase' into 'CAMEL_CASE'
 # Snippet taken from: http://stackoverflow.com/questions/1175208/elegant-python-function-to-convert-camelcase-to-camel-case
 def convertToUnderscore(s):
     return re.sub('(?!^)([0-9A-Z]+)', r'_\1', s).upper().replace('__', '_')
+
 
 class MakeIcdLoaderVisitor:
     def __init__(self, out):
@@ -39,21 +41,23 @@ class MakeIcdLoaderVisitor:
     def setup(self, api):
         self.api = api
         self.variables ={
-            'HeaderProtectMacro' : '_' + api.headerFileName.upper().replace('.', '_') + '_' ,
+            'HeaderProtectMacro': '_' + api.headerFileName.upper().replace('.', '_') + '_',
             'ApiExportMacro': api.constantPrefix + 'EXPORT',
-            'ConstantPrefix' : api.constantPrefix,
-            'FunctionPrefix' : api.functionPrefix,
-            'TypePrefix' : api.typePrefix,
+            'ConstantPrefix': api.constantPrefix,
+            'FunctionPrefix': api.functionPrefix,
+            'TypePrefix': api.typePrefix,
+
+            'HeaderInclude': api.getBindingProperty('C', 'headerInclude')
         }
 
     def beginSource(self):
         self.writeLine("// This file was generated automatically. DO NOT MODIFY")
-        self.writeLine("#include <AGPU/agpu.h>")
+        self.printLine("#include $HeaderInclude")
         self.newline()
 
     def visitApiDefinition(self, api):
         self.setup(api)
-        self.beginSource();
+        self.beginSource()
         self.emitVersions(api.versions)
 
     def emitVersions(self, versions):
@@ -106,10 +110,10 @@ class MakeIcdLoaderVisitor:
         # Check the self argument.
         self.printLine('\tif ($SelfName == nullptr)', SelfName = selfArgument.name)
         if method.returnType == 'error':
-            self.printLine('\t\treturn AGPU_NULL_POINTER;')
+            self.printLine('\t\treturn ${ConstantPrefix}NULL_POINTER;')
         else:
             self.printLine('\t\treturn ($TypePrefix$ReturnType)0;', ReturnType = method.returnType)
-        self.printLine('\tagpu_icd_dispatch **dispatchTable = reinterpret_cast<agpu_icd_dispatch**> ($SelfName);', SelfName = selfArgument.name)
+        self.printLine('\t${TypePrefix}icd_dispatch **dispatchTable = reinterpret_cast<${TypePrefix}icd_dispatch**> ($SelfName);', SelfName = selfArgument.name)
         self.printLine('\treturn (*dispatchTable)->$FunctionPrefix$FunctionName ( $Arguments );',
             FunctionName = method.cname,
             Arguments = argumentNames)
@@ -119,7 +123,8 @@ class MakeIcdLoaderVisitor:
 if __name__ == '__main__':
     if len(sys.argv) < 3:
         print "make-icdloader <definitions> <output dir>"
-    api = ApiDefinition.loadFromFileNamed(sys.argv[1])
-    with open(sys.argv[2] + '/redirection.cpp', 'w') as out:
-            visitor = MakeIcdLoaderVisitor(out)
-            api.accept(visitor)
+    else:
+        api = ApiDefinition.loadFromFileNamed(sys.argv[1])
+        with open(sys.argv[2] + '/redirection.cpp', 'w') as out:
+                visitor = MakeIcdLoaderVisitor(out)
+                api.accept(visitor)

@@ -12,59 +12,59 @@ HEADER_START = \
 #define $HeaderProtectMacro
 
 #include <stdexcept>
-#include "AGPU/$CHeader"
+#include "$CHeader"
 
 /**
- * Abstract GPU exception.
+ * $ApiName exception.
  */
-class agpu_exception : public std::runtime_error
+class ${TypePrefix}exception : public std::runtime_error
 {
 public:
-    explicit agpu_exception(agpu_error error)
-        : std::runtime_error("AGPU Error"), errorCode(error)
+    explicit ${TypePrefix}exception(${TypePrefix}error error)
+        : std::runtime_error("$ApiName Error"), errorCode(error)
     {
     }
 
-    agpu_error getErrorCode() const
+    ${TypePrefix}error getErrorCode() const
     {
         return errorCode;
     }
 
 private:
-    agpu_error errorCode;
+    ${TypePrefix}error errorCode;
 };
 
 /**
  * Abstract GPU reference smart pointer.
  */
 template<typename T>
-class agpu_ref
+class ${TypePrefix}ref
 {
 public:
-    agpu_ref()
+    ${TypePrefix}ref()
         : pointer(0)
     {
     }
 
-    agpu_ref(const agpu_ref<T> &other)
+    ${TypePrefix}ref(const ${TypePrefix}ref<T> &other)
     {
         if(other.pointer)
             other.pointer->addReference();
         pointer = other.pointer;
     }
 
-    agpu_ref(T* pointer)
+    ${TypePrefix}ref(T* pointer)
         : pointer(pointer)
     {
     }
 
-    ~agpu_ref()
+    ~${TypePrefix}ref()
     {
         if (pointer)
             pointer->release();
     }
 
-    agpu_ref<T> &operator=(T *newPointer)
+    ${TypePrefix}ref<T> &operator=(T *newPointer)
     {
         if (pointer)
             pointer->release();
@@ -72,7 +72,7 @@ public:
         return *this;
     }
 
-    agpu_ref<T> &operator=(const agpu_ref<T> &other)
+    ${TypePrefix}ref<T> &operator=(const ${TypePrefix}ref<T> &other)
     {
         if(pointer != other.pointer)
         {
@@ -112,10 +112,10 @@ private:
 /**
  * Helper function to convert an error code into an exception.
  */
-inline void AgpuThrowIfFailed(agpu_error error)
+inline void $ThrowIfFailed(${TypePrefix}error error)
 {
     if(error < 0)
-        throw agpu_exception(error);
+        throw ${TypePrefix}exception(error);
 }
 
 """
@@ -159,13 +159,15 @@ class MakeHeaderVisitor:
 
     def setup(self, api):
         self.api = api
-        self.variables ={
-            'HeaderProtectMacro' : (api.headerFileName + 'pp').upper().replace('.', '_') + '_' ,
-            'CHeader' : api.headerFileName ,
+        self.variables = {
+            'ApiName': api.name,
+            'HeaderProtectMacro': (api.headerFileName + 'pp').upper().replace('.', '_') + '_',
+            'CHeader': api.headerFileName,
             'ApiExportMacro': api.constantPrefix + 'EXPORT',
-            'ConstantPrefix' : api.constantPrefix,
-            'FunctionPrefix' : api.functionPrefix,
-            'TypePrefix' : api.typePrefix,
+            'ConstantPrefix': api.constantPrefix,
+            'FunctionPrefix': api.functionPrefix,
+            'TypePrefix': api.typePrefix,
+            'ThrowIfFailed': api.functionPrefix + 'ThrowIfFailed'
         }
 
     def beginHeader(self):
@@ -192,7 +194,7 @@ class MakeHeaderVisitor:
                 FunctionName = function.name,
                 Arguments = arguments)
             self.printLine('\t{')
-            self.printLine('\t\tAgpuThrowIfFailed($FunctionPrefix$FunctionName( $Arguments ));', FunctionName = function.cname, Arguments = paramNames)
+            self.printLine('\t\t$ThrowIfFailed($FunctionPrefix$FunctionName( $Arguments ));', FunctionName = function.cname, Arguments = paramNames)
             self.printLine('\t}')
             self.newline()
         else:
@@ -236,7 +238,7 @@ class MakeHeaderVisitor:
             self.emitMethodWrapper(method)
         self.printLine('};')
         self.newline()
-        self.printLine('typedef agpu_ref<$TypePrefix$Name> $TypePrefix${Name}_ref;', Name = interface.name)
+        self.printLine('typedef ${TypePrefix}ref<$TypePrefix$Name> $TypePrefix${Name}_ref;', Name = interface.name)
         self.newline()
 
     def emitFragment(self, fragment):
@@ -261,7 +263,8 @@ class MakeHeaderVisitor:
 if __name__ == '__main__':
     if len(sys.argv) < 3:
         print "make-headers <definitions> <output dir>"
-    api = ApiDefinition.loadFromFileNamed(sys.argv[1])
-    with open(sys.argv[2] + '/' + api.headerFileName + 'pp', 'w') as out:
-        visitor = MakeHeaderVisitor(out)
-        api.accept(visitor)
+    else:
+        api = ApiDefinition.loadFromFileNamed(sys.argv[1])
+        with open(sys.argv[2] + '/' + api.getBindingProperty('C++', 'headerFile'), 'w') as out:
+            visitor = MakeHeaderVisitor(out)
+            api.accept(visitor)

@@ -220,6 +220,7 @@ class ApiDefinition:
         self.loadFragments(xmlNode)
 
         # TODO: Deprecate these
+        self.name = xmlNode.get('name')
         self.headerFileName = self.getBindingProperty('C', 'headerFile')
         self.typePrefix = self.getBindingProperty('C', 'typePrefix')
         self.constantPrefix = self.getBindingProperty('C', 'constantPrefix')
