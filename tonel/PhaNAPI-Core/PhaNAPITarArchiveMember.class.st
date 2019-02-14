@@ -1,3 +1,6 @@
+"
+I represent a member in a TAR archive.
+"
 Class {
 	#name : #PhaNAPITarArchiveMember,
 	#superclass : #ArchiveMember,
@@ -158,26 +161,71 @@ PhaNAPITarArchiveMember >> ownerUserName: anObject [
 	ownerUserName := anObject
 ]
 
-{ #category : #'initialize-release' }
+{ #category : #reading }
 PhaNAPITarArchiveMember >> readContentFrom: stream [
-	| paddedSize paddingSize |
+	fileSize = 0 ifTrue: [
+		content := #[].
+		^ self
+	].
+
 	content := stream next: fileSize.
-	paddedSize := fileSize alignedTo: 512.
-	paddingSize := paddedSize - fileSize.
-	stream skip: paddingSize
+	self skipPaddingFrom: stream
 ]
 
-{ #category : #'initialize-release' }
+{ #category : #reading }
+PhaNAPITarArchiveMember >> readContentFrom: stream intoTargetPath: targetBasePath [
+	| targetPath |
+	targetPath := targetBasePath resolve: fileName asFileReference.
+	self isDirectory ifTrue: [ targetPath ensureCreateDirectory. ^ self skipContentFrom: stream. ].
+	self isFile ifTrue: [ ^ self readFileContentFrom: stream into: targetPath ].
+	self error: 'Unsupported tar file element type for writing to disk.'
+]
+
+{ #category : #reading }
+PhaNAPITarArchiveMember >> readFileContentFrom: stream into: targetPath [
+	| out bufferSize buffer remainingSize transferSize |
+	targetPath exists ifTrue: [ 
+		targetPath isFile ifFalse: [
+			self error: 'Overwriting something that is not a file with a file.'.
+		].
+		targetPath delete
+	].
+
+	out := targetPath binaryWriteStream.
+	[	
+		bufferSize := 65536.
+		buffer := ByteArray new: bufferSize.
+		remainingSize := fileSize.
+		[ remainingSize ~= 0 ] whileTrue: [
+			transferSize := remainingSize min: bufferSize.
+			(stream readInto: buffer startingAt: 1 count: transferSize) = transferSize ifFalse: [ 
+				self error: 'Failed to read the complete content of a member in TAR file.'
+			].
+		
+			out next: transferSize putAll: buffer startingAt: 1.
+			remainingSize := remainingSize - transferSize
+		].
+	
+		out close.
+		^ self skipPaddingFrom: stream
+	] on: Error do: [ :error |
+		out close.
+		targetPath delete.
+		error pass
+	]
+]
+
+{ #category : #reading }
 PhaNAPITarArchiveMember >> readFrom: in integerWithSize: stringSize [
 	^ (in next: stringSize) asString asInteger
 ]
 
-{ #category : #'initialize-release' }
+{ #category : #reading }
 PhaNAPITarArchiveMember >> readFrom: in octalWithSize: stringSize [
 	^ Integer readFrom: (in next: stringSize) asString base: 8
 ]
 
-{ #category : #'initialize-release' }
+{ #category : #reading }
 PhaNAPITarArchiveMember >> readFrom: in stringWithSize: stringSize [
 	| rawBytes nullIndex bytes |
 	rawBytes := in next: stringSize.
@@ -188,7 +236,7 @@ PhaNAPITarArchiveMember >> readFrom: in stringWithSize: stringSize [
 	^ bytes utf8Decoded
 ]
 
-{ #category : #'initialize-release' }
+{ #category : #reading }
 PhaNAPITarArchiveMember >> readHeaderFrom: recordData [
 	| in headerRecordChecksum ustar ustarVersion |
 	in := ReadStream on: recordData.
@@ -210,6 +258,19 @@ PhaNAPITarArchiveMember >> readHeaderFrom: recordData [
 		deviceMinorNumber := self readFrom: in integerWithSize: 8.
 		fileName := (self readFrom: in stringWithSize: 155) , fileName.
 	]
+]
+
+{ #category : #reading }
+PhaNAPITarArchiveMember >> skipContentFrom: stream [
+	stream skip: (fileSize alignedTo: 512)
+]
+
+{ #category : #reading }
+PhaNAPITarArchiveMember >> skipPaddingFrom: stream [
+	| paddingSize paddedSize |
+	paddedSize := fileSize alignedTo: 512.
+	paddingSize := paddedSize - fileSize.
+	stream skip: paddingSize
 ]
 
 { #category : #accessing }

@@ -17,12 +17,6 @@ PhaNAPIBintray class >> fetchLibrary: libraryName fromUser: useName repository: 
 ]
 
 { #category : #bintray }
-PhaNAPIBintray >> doHTTPRequestWithProgress: aBlock [
-	^ aBlock value
-	
-]
-
-{ #category : #bintray }
 PhaNAPIBintray >> downloadUser: userName repository: repository package: package latestVersionForMode: mode platform: platform [
 	| latestVersionFiles latestVersionFileName downloadUri downloadTarget |
 	latestVersionFiles := self getUser: userName repository: repository package: package latestVersionForMode: mode platform: platform.
@@ -35,11 +29,11 @@ PhaNAPIBintray >> downloadUser: userName repository: repository package: package
 		copyReplaceAll: ':user' with: userName)
 		copyReplaceAll: ':repository' with: repository)
 		copyReplaceAll: ':file_path' with: latestVersionFileName.
-	downloadTarget := self downloadsDirectory asFileReference / latestVersionFileName.
+	downloadTarget := PhaNAPI uniqueInstance downloadsDirectory asFileReference / latestVersionFileName.
 	downloadTarget parent ensureCreateDirectory.
 	downloadTarget exists ifTrue: [ downloadTarget delete ].
 	
-	(self doHTTPRequestWithProgress: [
+	(self doHTTPRequest: [
 		self withZincRedirectionHack: [ 
 			(ZnClient new
 				url: downloadUri;
@@ -47,7 +41,7 @@ PhaNAPIBintray >> downloadUser: userName repository: repository package: package
 				signalProgress: true;
 				downloadTo: downloadTarget) 
 		]
-	]) ifFalse: [ 
+	] withProgress: ('Downloading {1} ...' format: {downloadTarget basename})) ifFalse: [ 
 		self error: 'Failed to download the requested library.'
 	].
 	^ downloadTarget
@@ -55,18 +49,13 @@ PhaNAPIBintray >> downloadUser: userName repository: repository package: package
 
 { #category : #bintray }
 PhaNAPIBintray >> fetchLibrary: libraryName fromUser: userName repository: repository package: package [
-	| fullLibraryName targetLibraryPath archive |
-	fullLibraryName := self fullLibraryName: libraryName forPlatform: Smalltalk os.
-	targetLibraryPath := Smalltalk imageDirectory / fullLibraryName.
-	targetLibraryPath exists ifTrue: [ ^ self ].
+	| archive |
+	(PhaNAPI fullLibraryPathForCurrentPlatform: libraryName package: repository) ifNotNil: [
+		^ self
+	].
 	
 	archive := self downloadUser: userName repository: repository package: package latestVersionForMode: currentPlatformMode platform: Smalltalk os bintrayPlatformName.
-	self halt
-]
-
-{ #category : #bintray }
-PhaNAPIBintray >> fullLibraryName: libraryName forPlatform: platform [
-	^ platform dynamicLibraryPrefix , libraryName , platform dynamicLibrarySuffix
+	PhaNAPI uniqueInstance decompressLibraryArchive: archive
 ]
 
 { #category : #bintray }

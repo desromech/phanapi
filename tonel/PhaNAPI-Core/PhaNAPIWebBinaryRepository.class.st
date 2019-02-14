@@ -4,20 +4,35 @@ Class {
 	#category : #'PhaNAPI-Core-BinaryRepository'
 }
 
-{ #category : #directories }
-PhaNAPIWebBinaryRepository >> downloadsDirectory [
-	^ self phanapiDirectory / #downloads
-]
-
-{ #category : #directories }
-PhaNAPIWebBinaryRepository >> phanapiDirectory [
-	^ FileLocator localDirectory / #phanapi
-]
-
 { #category : #bintray }
+PhaNAPIWebBinaryRepository >> doHTTPRequest: aBlock withProgress: progressName [
+	| result |
+	UIManager default informUserDuring: [ :bar |
+		bar label: progressName.
+		[
+			result := aBlock value
+		] on: HTTPProgress do: [ :progress |
+			progress isEmpty ifFalse: [ 
+				bar current: progress percentage
+			].
+			progress resume
+		]
+	].
+
+	^ result
+	
+]
+
+{ #category : #'web requests' }
 PhaNAPIWebBinaryRepository >> requestJSON: uri [
-	^ self doHTTPRequestWithProgress: [NeoJSONReader fromString: (ZnClient new
+	^ self requestJSON: uri progressName: 'Requesting web binary repository metadata...'
+]
+
+{ #category : #'web requests' }
+PhaNAPIWebBinaryRepository >> requestJSON: uri progressName: progressName [
+	^ self doHTTPRequest: [NeoJSONReader fromString: (ZnClient new
 		beOneShot;
 		signalProgress: true;
-		get: uri) contents]
+		get: uri) contents
+	] withProgress: progressName
 ]
