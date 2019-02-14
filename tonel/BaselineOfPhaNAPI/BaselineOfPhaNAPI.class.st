@@ -10,12 +10,16 @@ BaselineOfPhaNAPI >> baseline: spec [
 	spec for: #'common' do: [
 		spec blessing: #'baseline'.
 		spec 
-			baseline: 'NeoJSON' with: [
+			baseline: #'NeoJSON' with: [
 				spec
 				repository: 'github://svenvc/NeoJSON/repository' ].
 
 		spec 
-			package: #'PhaNAPI-BinTray' with: [
-				spec requires: #('NeoJSON' ). ]. ].
+			package: #'PhaNAPI-Core' with: [
+				spec requires: #(#'NeoJSON' ). ].
+		spec 
+			package: #'PhaNAPI-Bintray' with: [
+				spec requires: #(#'PhaNAPI-Core'). ].
+    ].
 
 ]

@@ -1,3 +1,6 @@
+"
+I provide some commmon utilities for downloading libraries from a specific cloud storage provider.
+"
 Class {
 	#name : #PhaNAPIWebBinaryRepository,
 	#superclass : #Object,

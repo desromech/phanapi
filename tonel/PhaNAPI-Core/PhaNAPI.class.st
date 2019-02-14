@@ -1,3 +1,7 @@
+"
+I am a facade for some PhaNAPI core utility methods.
+
+"
 Class {
 	#name : #PhaNAPI,
 	#superclass : #Object,
