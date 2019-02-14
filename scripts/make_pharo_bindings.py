@@ -161,6 +161,10 @@ class MakePharoBindingsVisitor:
         self.out = open(os.path.join(folder, fileName), "w")
         self.outFileName = fileName
 
+    def emitPackageFile(self, package):
+        self.beginFileInCategory(package, 'package.st')
+        self.printLine("Package { #name : #'$PackageName' }", PackageName=package)
+
     def beginClassFile(self, category, className):
         self.finishCurrentFile()
         self.beginFileInCategory(category, className + '.class.st')
@@ -197,17 +201,17 @@ class MakePharoBindingsVisitor:
                 comma = ','
             self.printLine("\t\t'$String'$Comma", String=stringList[i], Comma=comma)
             i += 1
-        self.printLine("\t]")
+        self.printLine("\t],")
 
     def emitSubclass(self, baseClass, className, instanceVariableNames=[], classVariableNames=[], poolDictionaries=[]):
         self.beginClassFile(self.generatedCodeCategory, className)
 
         self.printLine('Class {')
-        self.printLine('\t#name : #$ClassName', ClassName=className)
+        self.printLine('\t#name : #$ClassName,', ClassName=className)
         self.emitTonelStringList('instVars', instanceVariableNames)
         self.emitTonelStringList('classVars', classVariableNames)
         self.emitTonelStringList('pools', poolDictionaries)
-        self.printLine('\t#superclass : #$BaseClass', BaseClass=baseClass)
+        self.printLine('\t#superclass : #$BaseClass,', BaseClass=baseClass)
         self.printLine("\t#category : '$Category'", Category=self.generatedCodeCategory)
         self.printLine('}')
         self.newline()
@@ -373,6 +377,7 @@ class MakePharoBindingsVisitor:
         self.emitBindingsInitializations(api, doItClassName)
 
     def emitBaseClasses(self, api):
+        self.emitPackageFile(self.generatedCodeCategory)
         self.emitConstants()
         self.emitInterfaceClasses(api)
         self.emitStructures(api)
@@ -460,7 +465,7 @@ class MakePharoBindingsVisitor:
         self.emitBaseClasses(api)
 
     def beginMethod(self, className, category, methodHeader):
-        self.printLine("{ #category = #'$Category' }", Category=category)
+        self.printLine("{ #category : #'$Category' }", Category=category)
         self.printLine("$ClassName >> $MethodHeader [", ClassName=className, MethodHeader=methodHeader)
 
     def beginMethodAppendingFile(self, className, category, methodHeader):
