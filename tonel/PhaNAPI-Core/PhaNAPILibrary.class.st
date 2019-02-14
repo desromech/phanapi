@@ -12,6 +12,11 @@ Class {
 }
 
 { #category : #'library downloading' }
+PhaNAPILibrary class >> fetchLibrary [
+	^ self uniqueInstance fetchLibrary
+]
+
+{ #category : #'library downloading' }
 PhaNAPILibrary >> fetchLibrary [
 	"This method takes care of fetching the actual library. For example, if the
 	library is built using CI, and deployed into bintray, it could be fetched with
