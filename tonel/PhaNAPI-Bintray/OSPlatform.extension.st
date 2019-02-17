@@ -7,6 +7,6 @@ OSPlatform >> bintrayArchitectureName [
 	Smalltalk wordSize = 4 ifTrue: [ 
 		^ 'x86'
 	] ifFalse: [ 
-		^ 'x86_64'
+		^ 'x64'
 	]
 ]
