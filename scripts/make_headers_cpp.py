@@ -54,8 +54,9 @@ public:
     }
 
     ${TypePrefix}ref(T* pointer)
-        : pointer(pointer)
+        : pointer(0)
     {
+		reset(pointer);
     }
 
     ~${TypePrefix}ref()
@@ -84,6 +85,13 @@ public:
         }
         return *this;
     }
+
+	void reset(T *newPointer = nullptr)
+	{
+		if(pointer)
+			pointer->release();
+		pointer = newPointer;
+	}
 
     operator bool() const
     {
