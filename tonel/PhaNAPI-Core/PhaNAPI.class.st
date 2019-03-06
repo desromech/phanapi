@@ -54,7 +54,10 @@ PhaNAPI >> fullLibraryName: libraryName forPlatform: platform [
 PhaNAPI >> fullLibraryPathForCurrentPlatform: libraryName package: packageName [
 	| fullLibraryName path |
 	fullLibraryName := self fullLibraryName: libraryName forPlatform: Smalltalk os.
-	
+
+	path := Smalltalk imageDirectory / fullLibraryName.
+	path isFile ifTrue: [ ^ path ].
+		
 	path := self librariesDirectory / packageName / fullLibraryName.
 	path isFile ifTrue: [ ^ path ].
 
