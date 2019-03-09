@@ -324,11 +324,14 @@ class MakePharoBindingsVisitor:
                 pharoName = self.namespacePrefix + convertToCamelCase(interface.name)
                 self.emitSubclass(self.interfaceBaseClassName, pharoName)
 
-    def emitStructure(self, struct):
-        cname = self.processText("$TypePrefix$StructName", StructName=struct.name)
-        pharoName = self.namespacePrefix + convertToCamelCase(struct.name)
+    def emitAggregate(self, aggregate):
+        cname = self.processText("$TypePrefix$AggregateName", AggregateName=aggregate.name)
+        pharoName = self.namespacePrefix + convertToCamelCase(aggregate.name)
         self.typeBindings[cname] = pharoName
-        self.emitSubclass('FFIExternalStructure', pharoName, [], [], [self.constantsClassName, self.typesClassName])
+        superClass = 'FFIExternalStructure'
+        if aggregate.isUnion():
+            superClass = 'FFIExternalUnion'
+        self.emitSubclass(superClass, pharoName, [], [], [self.constantsClassName, self.typesClassName])
 
         self.beginMethod(pharoName + ' class', 'definition', 'fieldsDesc')
         self.printLine(
@@ -336,16 +339,16 @@ class MakePharoBindingsVisitor:
 	self rebuildFieldAccessors
 	"
 	^ #(""")
-        for field in struct.fields:
+        for field in aggregate.fields:
             self.printLine("\t\t $TypePrefix$FieldType $FieldName;", FieldType=field.type, FieldName=field.name)
 
         self.printLine("\t\t)")
         self.endMethod()
 
-    def emitStructures(self, api):
+    def emitAggregates(self, api):
         for version in api.versions.values():
-            for struct in version.structs:
-                self.emitStructure(struct)
+            for struct in version.agreggates:
+                self.emitAggregate(struct)
 
     def emitPoolInitializations(self, api, doItClassName):
         self.beginMethod(doItClassName + ' class', 'initialization', 'initializeConstants')
@@ -354,11 +357,11 @@ class MakePharoBindingsVisitor:
         self.printLine("\t$Constants initialize.", Constants=self.constantsClassName)
         self.endMethod()
 
-    def emitStructuresInitializations(self, api, doItClassName):
+    def emitAggregatesInitializations(self, api, doItClassName):
         self.beginMethod(doItClassName + ' class', 'initialization', 'initializeStructures')
         self.printLine("\t<script>")
         for version in api.versions.values():
-            for struct in version.structs:
+            for struct in version.agreggates:
                 pharoName = self.namespacePrefix + convertToCamelCase(struct.name)
                 self.printLine('\t$Structure rebuildFieldAccessors.', Structure=pharoName)
         self.endMethod()
@@ -373,14 +376,14 @@ class MakePharoBindingsVisitor:
     def emitDoIts(self, api, doItClassName):
         self.emitSubclass('Object', doItClassName)
         self.emitPoolInitializations(api, doItClassName)
-        self.emitStructuresInitializations(api, doItClassName)
+        self.emitAggregatesInitializations(api, doItClassName)
         self.emitBindingsInitializations(api, doItClassName)
 
     def emitBaseClasses(self, api):
         self.emitPackageFile(self.generatedCodeCategory)
         self.emitConstants()
         self.emitInterfaceClasses(api)
-        self.emitStructures(api)
+        self.emitAggregates(api)
         self.emitTypeBindings()
         self.emitCBindings(api)
         self.emitPharoBindings(api)

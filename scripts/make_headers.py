@@ -170,7 +170,23 @@ class MakeHeaderVisitor:
     def emitField(self, field):
         self.printLine('\t$TypePrefix$Type $Name;', Type = field.type, Name = field.name)
 
-    def emitStruct(self, struct):
+    def emitAggregate(self, aggregate):
+        if aggregate.isStruct():
+            self.emitStructure(aggregate)
+        elif aggregate.isUnion():
+            self.emitUnion(aggregate)
+        else:
+            assert False
+
+    def emitUnion(self, union):
+        self.printLine('/* Union $TypePrefix$Name. */', Name = union.name)
+        self.printLine('typedef union $TypePrefix$Name {', Name = union.name)
+        for field in union.fields:
+            self.emitField(field)
+        self.printLine('} $TypePrefix$Name;', Name = union.name)
+        self.newline()
+
+    def emitStructure(self, struct):
         self.printLine('/* Structure $TypePrefix$Name. */', Name = struct.name)
         self.printLine('typedef struct $TypePrefix$Name {', Name = struct.name)
         for field in struct.fields:
@@ -211,10 +227,9 @@ class MakeHeaderVisitor:
         self.newline()
 
         # Emit the structures.
-        for struct in fragment.structs:
-            self.emitStruct(struct)
+        for struct in fragment.agreggates:
+            self.emitAggregate(struct)
 
-        # Emit the global functions
         self.emitGlobals(fragment.globals)
 
         # Emit the interface methods

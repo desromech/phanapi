@@ -45,20 +45,42 @@ class Field:
         return visitor.visitField(self)
 
 
-class Struct:
+class Aggregate:
     def __init__(self, xmlNode):
         self.name = xmlNode.get('name')
         self.fields = []
         self.loadFields(xmlNode)
-
-    def accept(self, visitor):
-        return visitor.visitStruct(self)
 
     def loadFields(self, node):
         for child in node:
             if child.tag == 'field':
                 self.fields.append(Field(child))
 
+    def isStruct(self):
+        return False
+
+    def isUnion(self):
+        return False
+
+class Struct(Aggregate):
+    def __init__(self, xmlNode):
+        Aggregate.__init__(self, xmlNode)
+
+    def accept(self, visitor):
+        return visitor.visitStruct(self)
+
+    def isStruct(self):
+        return True
+
+class Union(Aggregate):
+    def __init__(self, xmlNode):
+        Aggregate.__init__(self, xmlNode)
+
+    def accept(self, visitor):
+        return visitor.visitUnion(self)
+
+    def isUnion(self):
+        return True
 
 class Enum:
     def __init__(self, xmlNode):
@@ -143,7 +165,7 @@ class ApiFragment:
         self.constants = []
         self.globals = []
         self.interfaces = []
-        self.structs = []
+        self.agreggates = []
         self.loadChildren(xmlNode)
 
     def loadChildren(self, xmlNode):
@@ -181,9 +203,10 @@ class ApiFragment:
         for child in node:
             loadedNode = None
             if child.tag == 'struct': loadedNode = Struct(child)
+            if child.tag == 'union': loadedNode = Union(child)
 
             if loadedNode is not None:
-                self.structs.append(loadedNode)
+                self.agreggates.append(loadedNode)
 
     def loadGlobals(self, node):
         for child in node:
