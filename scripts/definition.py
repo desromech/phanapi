@@ -168,6 +168,10 @@ class ApiFragment:
         self.agreggates = []
         self.loadChildren(xmlNode)
 
+    def getInterfaceNamesInto(self, dest):
+        for iface in self.interfaces:
+            dest.add(iface.name)
+
     def loadChildren(self, xmlNode):
         for child in xmlNode:
             if child.tag == 'types':
@@ -249,11 +253,35 @@ class ApiDefinition:
         self.constantPrefix = self.getBindingProperty('C', 'constantPrefix')
         self.functionPrefix = self.getBindingProperty('C', 'functionPrefix')
 
+        self.interfaceNameCache = None
+
     def accept(self, visitor):
         return visitor.visitApiDefinition(self)
 
     def getBindingProperty(self, language, key):
         return self.bindings[language].getProperty(key)
+
+    def buildInterfaceNameCache(self):
+        self.interfaceNameCache = set()
+        for version in self.versions.values():
+            version.getInterfaceNamesInto(self.interfaceNameCache)
+        for extension in self.extensions.values():
+            extension.getInterfaceNamesInto(self.interfaceNameCache)
+        print self.interfaceNameCache
+
+    def getInterfaceNames(self):
+        if self.interfaceNameCache is None:
+            self.buildInterfaceNameCache()
+        return self.interfaceNameCache
+
+    def isInterfaceName(self, iname):
+        print 'isInterfaceName', iname
+        return iname in self.getInterfaceNames()
+
+    def isInterfaceReference(self, typeString):
+        if typeString.endswith('*'):
+            return self.isInterfaceName(typeString[:-1])
+        return False
 
     @staticmethod
     def loadFromFileNamed(filename):

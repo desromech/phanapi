@@ -184,10 +184,22 @@ class MakeHeaderVisitor:
 
         arguments = self.makeArgumentsString(allArguments)
         paramNames = self.makeArgumentNamesString(allArguments)
-        self.printLine('\tvirtual $TypePrefix$ReturnType $FunctionName ( $Arguments ) = 0;',
-                ReturnType = function.returnType,
+        self.printLine('\tvirtual $ReturnType $FunctionName ( $Arguments ) = 0;',
+                ReturnType = self.convertMethodReturnType(function.returnType),
                 FunctionName = function.name,
                 Arguments = arguments)
+
+    def convertMethodReturnType(self, typeString):
+        if self.api.isInterfaceReference(typeString):
+            return typeString[:-1] + '_ref'
+        return self.processText('$TypePrefix$Type', Type=typeString)
+
+    def convertMethodArgumentType(self, typeString):
+        if typeString.endswith('**') and self.api.isInterfaceReference(typeString[:-1]):
+            return typeString[:-2] + '_ref*'
+        if self.api.isInterfaceReference(typeString):
+            return typeString[:-1] + '_ref'
+        return self.processText('$TypePrefix$Type', Type=typeString)
 
     def makeArgumentsString(self, arguments):
         # Emit void when no having arguments
@@ -198,7 +210,7 @@ class MakeHeaderVisitor:
         for i in range(len(arguments)):
             arg = arguments[i]
             if i > 0: result += ', '
-            result += self.processText('$TypePrefix$Type $Name', Type = arg.type, Name = arg.name)
+            result += self.processText('$Type $Name', Type = self.convertMethodArgumentType(arg.type), Name = arg.name)
         return result
 
     def makeArgumentNamesString(self, arguments):
