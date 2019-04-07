@@ -116,7 +116,7 @@ class MakeHeaderVisitor:
             allArguments = [SelfArgument(function.clazz)] + allArguments
 
         arguments = self.makeArgumentsString(allArguments)
-        self.printLine('typedef $TypePrefix$ReturnType (*$FunctionPrefix${FunctionName}_FUN) ( $Arguments );',
+        self.printLine('typedef $TypePrefix$ReturnType (*$FunctionPrefix${FunctionName}_FUN) ($Arguments);',
             ReturnType = function.returnType,
             FunctionName = function.cname,
             Arguments = arguments)
@@ -127,7 +127,7 @@ class MakeHeaderVisitor:
             allArguments = [SelfArgument(function.clazz)] + allArguments
 
         arguments = self.makeArgumentsString(allArguments)
-        self.printLine('${ApiExportMacro} $TypePrefix$ReturnType $FunctionPrefix$FunctionName ( $Arguments );',
+        self.printLine('${ApiExportMacro} $TypePrefix$ReturnType $FunctionPrefix$FunctionName($Arguments);',
             ReturnType = function.returnType,
             FunctionName = function.cname,
             Arguments = arguments)

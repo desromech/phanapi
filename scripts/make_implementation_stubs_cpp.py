@@ -12,6 +12,7 @@ HEADER_START = \
 #define $HeaderProtectMacro
 
 #include <stdexcept>
+#include <memory>
 #include "$CHeader"
 
 namespace $Namespace
@@ -96,6 +97,153 @@ public:
     std::atomic_uint weakCount;
 };
 
+template<typename T>
+class weak_ref;
+
+/**
+ * Phanapi strong reference
+ */
+template<typename T>
+class ref
+{
+public:
+    typedef ref_counter<T> Counter;
+    typedef ref<T> StrongRef;
+    typedef weak_ref<T> WeakRef;
+
+private:
+    Counter *counter;
+    friend class WeakRef;
+
+public:
+    ref() : counter(nullptr) {}
+
+    ref(const StrongRef &other)
+        : counter(nullptr)
+    {
+        *this = other;
+    }
+
+    ref(const Counter *theCounter)
+        : counter(theCounter)
+    {
+    }
+
+    ~ref()
+    {
+        if(counter)
+            counter->release();
+    }
+
+    StrongRef &operator=(const StrongRef &other)
+    {
+        auto newCounter = other.counter;
+        if(newCounter)
+            newCounter->retain();
+        if(counter)
+            counter->release();
+        counter = newCounter;
+        return *this;
+    }
+
+    void reset(Counter *newCounter = nullptr)
+    {
+        if(counter)
+            counter->release();
+        counter = newCounter;
+    }
+
+    Counter *disown()
+    {
+        Counter result = counter;
+        counter = nullptr;
+        return result;
+    }
+
+    T *operator->() const
+    {
+        return counter->object; 
+    }
+};
+
+/**
+ * Phanapi weak reference
+ */
+template<typename T>
+class weak_ref
+{
+public:
+    typedef ref_counter<T> Counter;
+    typedef ref<T> StrongRef;
+    typedef weak_ref<T> WeakRef;
+
+private:
+    Counter *counter;
+
+public:
+    weak_ref(const StrongRef &ref)
+    {
+        counter = ref.counter;
+        if(counter)
+            counter->weakRetain();
+    }
+
+    weak_ref(const WeakRef &ref)
+    {
+        counter = ref.counter;
+        if(counter)
+            counter->weakRetain();
+    }
+
+    ~weak_ref()
+    {
+        if(counter)
+            counter->weakRelease();
+    }
+
+    WeakRef &operator=(const StrongRef &other)
+    {
+        auto newCounter = other.counter;
+        if(newCounter)
+            newCounter->weakRetain();
+        if(counter)
+            counter->weakRelease();
+        counter = newCounter;
+        return *this;
+    }
+
+    WeakRef &operator=(const WeakRef &other)
+    {
+        auto newCounter = other.counter;
+        if(newCounter)
+            newCounter->weakRetain();
+        if(counter)
+            counter->weakRelease();
+        counter = newCounter;
+        return *this;
+    }
+
+    StrongRef lock()
+    {
+        if(!counter)
+            return StrongRef();
+
+        return counter->weakLock() ? StrongRef(counter) : StrongRef();
+    }
+};
+
+template<typename T, typename...Args>
+ref<T> makeObject(Args... args)
+{
+    std::unique_ptr<T> object(new T(args));
+    std::unique_ptr<ref_counter<T>> counter(new ref_counter<T> ());
+    counter->object = object.release();
+    return ref<T> (counter.release());
+}
+
+/**
+ * Phanapi base interface
+ */
 class base_interface
 {
 public
@@ -111,13 +259,35 @@ HEADER_END = \
 #endif /* $HeaderProtectMacro */
 """
 
+DISPATCH_FILE_START = \
+"""
+#include "$CPPHeader"
+
+#define asRef(O, I) (reinterpret_cast<$Namespace::ref<T> &> (*I))
+#define asRefCounter(O, I) (reinterpret_cast<$Namespace::ref_counter<T> *> (I))
+
+"""
+
+DISPATCH_FILE_END = \
+"""
+
+#undef asRef
+#undef asRefCounter
+
+namespace $Namespace
+{
+$IcdDispatchTableType cppRefcountedDispatchTable = {
+#include "$ICDHeader"
+};
+} // End of $Namespace
+"""
 
 # Converts text in 'CamelCase' into 'CAMEL_CASE'
 # Snippet taken from: http://stackoverflow.com/questions/1175208/elegant-python-function-to-convert-camelcase-to-camel-case
 def convertToUnderscore(s):
     return re.sub('(?!^)([0-9A-Z]+)', r'_\1', s).upper().replace('__', '_')
 
-class MakeHeaderVisitor:
+class MakeImplVisitor:
     def __init__(self, out):
         self.out = out
         self.variables = {}
@@ -150,6 +320,8 @@ class MakeHeaderVisitor:
             'ApiName': api.name,
             'HeaderProtectMacro': (api.headerFileName + 'pp').upper().replace('.', '_') + '_',
             'CHeader': api.headerFileName,
+            'CPPHeader': api.getBindingProperty('C++/Impl', 'headerFile'),
+            'ICDHeader': api.getBindingProperty('C', 'icdIncludeFile'),
             'ApiExportMacro': api.constantPrefix + 'EXPORT',
             'ConstantPrefix': api.constantPrefix,
             'FunctionPrefix': api.functionPrefix,
@@ -161,7 +333,13 @@ class MakeHeaderVisitor:
             'IcdDispatchTableType': api.typePrefix + 'icd_dispatch',
             'ErrorOk': api.constantPrefix + 'INVALID_OK',
             'ErrorInvalidOperation': api.constantPrefix + 'INVALID_OPERATION',
+            'ErrorNullPointer': api.constantPrefix + 'NULL_POINTER',
         }
+
+
+class MakeHeaderVisitor(MakeImplVisitor):
+    def __init__(self, out):
+        MakeImplVisitor.__init__(self, out)
 
     def beginHeader(self):
         self.printString(HEADER_START)
@@ -184,14 +362,14 @@ class MakeHeaderVisitor:
 
         arguments = self.makeArgumentsString(allArguments)
         paramNames = self.makeArgumentNamesString(allArguments)
-        self.printLine('\tvirtual $ReturnType $FunctionName ( $Arguments ) = 0;',
+        self.printLine('\tvirtual $ReturnType $FunctionName($Arguments) = 0;',
                 ReturnType = self.convertMethodReturnType(function.returnType),
                 FunctionName = function.name,
                 Arguments = arguments)
 
     def convertMethodReturnType(self, typeString):
         if self.api.isInterfaceReference(typeString):
-            return typeString[:-1] + '_ref'
+            return typeString[:-1] + '_ptr'
         return self.processText('$TypePrefix$Type', Type=typeString)
 
     def convertMethodArgumentType(self, typeString):
@@ -229,6 +407,7 @@ class MakeHeaderVisitor:
 
     def declareInterface(self, interface):
         self.printLine('struct $Name;', Name = interface.name)
+        self.printLine('typedef ref_counter<$Name> ${Name}_ptr;', Name = interface.name)
         self.printLine('typedef ref<$Name> ${Name}_ref;', Name = interface.name)
         self.printLine('typedef weakref<$Name> ${Name}_weakref;', Name = interface.name)
         self.newline()
@@ -270,11 +449,133 @@ class MakeHeaderVisitor:
         for extension in extensions.values():
             self.emitExtension(extension)
 
+class MakeDispatchVisitor(MakeImplVisitor):
+    def __init__(self, out):
+        MakeImplVisitor.__init__(self, out)
+
+    def beginDispatchFile(self):
+        self.printString(DISPATCH_FILE_START)
+
+    def endDispatchFile(self):
+        self.printString(DISPATCH_FILE_END)
+
+    def visitApiDefinition(self, api):
+        self.setup(api)
+        self.beginDispatchFile();
+        self.emitVersions(api.versions)
+        self.emitExtensions(api.extensions)
+        self.endDispatchFile();
+
+    def emitCheckSelfInFunction(self, function):
+        if function.returnType == "error":
+            self.printLine("\tif(!self) return $ErrorNullPointer;")
+    
+    def emitDispatchFunction(self, function):
+        assert function.clazz is not None
+
+        allArguments = [SelfArgument(function.clazz)] + function.arguments
+        allArguments[0].name = "self"
+
+        arguments = self.makePrototypeArgumentsString(allArguments)
+        self.printLine('${ApiExportMacro} $TypePrefix$ReturnType $FunctionPrefix$FunctionName($Arguments)',
+            ReturnType = function.returnType,
+            FunctionName = function.cname,
+            Arguments = arguments)
+        self.printLine('{')
+        if function.name == "addReference":
+            self.emitCheckSelfInFunction(function)
+            self.printLine('\treturn asRefCounter($Namespace::$Class, self)->retain();', Class = function.clazz.name);
+        elif function.name == "release":
+            self.emitCheckSelfInFunction(function)
+            self.printLine('\treturn asRefCounter($Namespace::$Class, self)->release();', Class = function.clazz.name);
+        else:
+            self.emitCheckSelfInFunction(function)
+            callExpression = self.processText('asRef($Namespace::$Class, self)->$MethodName($Arguments)',
+                Class = function.clazz.name,
+                MethodName = function.name,
+                Arguments = self.makeDispatchCallArgumentsString(function.arguments)
+            )
+
+            if self.api.isInterfaceReference(function.returnType):
+                self.printLine("\treturn reinterpret_cast<$TypePrefix$ReturnType> ($CallExpression);",
+                    ReturnType = function.returnType,
+                    CallExpression = callExpression
+                )
+            else:
+                self.printLine("\treturn $CallExpression;", CallExpression = callExpression)
+        self.printLine('}')
+        self.newline()
+
+    def makePrototypeArgumentsString(self, arguments):
+        # Emit void when no having arguments
+        if len(arguments) == 0:
+            return 'void'
+
+        result = ''
+        for i in range(len(arguments)):
+            arg = arguments[i]
+            if i > 0: result += ', '
+            result += self.processText('$TypePrefix$Type $Name', Type = arg.type, Name = arg.name)
+        return result
+
+    def makeDispatchCallArgumentsString(self, arguments):
+        result = ''
+        for i in range(len(arguments)):
+            arg = arguments[i]
+            if i > 0: result += ', '
+
+            typeString = arg.type
+            if typeString.endswith('**') and self.api.isInterfaceReference(typeString[:-1]):
+                result += self.processText('reinterpret_cast<$Namespace::$TargetType> ($Arg)',
+                    TargetType = typeString[:-2] + '_ref*',
+                    Arg = arg.name
+                )
+            elif self.api.isInterfaceReference(typeString):
+                result += self.processText('asRef($Namespace::$Type, $Arg)', Type = arg.type[:-1], Arg = arg.name)
+            else:
+                result += arg.name
+
+        return result
+
+    def emitInterface(self, interface):
+        self.printLine("//==============================================================================")
+        self.printLine("// $iface C dispatching functions.", iface = interface.name)
+        self.printLine("//==============================================================================")
+        self.newline()
+
+        for method in interface.methods:
+            self.emitDispatchFunction(method)
+
+
+    def emitFragment(self, fragment):
+        # Emit the interface bodies
+        for interface in fragment.interfaces:
+            self.emitInterface(interface)
+
+    def emitVersion(self, version):
+        self.emitFragment(version)
+
+    def emitVersions(self, versions):
+        for version in versions.values():
+            self.emitVersion(version)
+
+    def emitExtension(self, version):
+        self.emitFragment(version)
+
+    def emitExtensions(self, extensions):
+        for extension in extensions.values():
+            self.emitExtension(extension)
+
 if __name__ == '__main__':
     if len(sys.argv) < 3:
         print "make-headers <definitions> <output dir>"
     else:
         api = ApiDefinition.loadFromFileNamed(sys.argv[1])
+
         with open(sys.argv[2] + '/' + api.getBindingProperty('C++/Impl', 'headerFile'), 'w') as out:
             visitor = MakeHeaderVisitor(out)
+            api.accept(visitor)
+
+        with open(sys.argv[2] + '/' + api.getBindingProperty('C++/Impl', 'dispatchIncludeFile'), 'w') as out:
+            visitor = MakeDispatchVisitor(out)
             api.accept(visitor)

@@ -197,21 +197,21 @@ class MakeHeaderVisitor:
         arguments = self.makeArgumentsString(allArguments)
         paramNames = self.makeArgumentNamesString(allArguments)
         if function.returnType == 'error':
-            self.printLine('\tinline void $FunctionName ( $Arguments )',
+            self.printLine('\tinline void $FunctionName($Arguments)',
                 ReturnType = function.returnType,
                 FunctionName = function.name,
                 Arguments = arguments)
             self.printLine('\t{')
-            self.printLine('\t\t$ThrowIfFailed($FunctionPrefix$FunctionName( $Arguments ));', FunctionName = function.cname, Arguments = paramNames)
+            self.printLine('\t\t$ThrowIfFailed($FunctionPrefix$FunctionName($Arguments));', FunctionName = function.cname, Arguments = paramNames)
             self.printLine('\t}')
             self.newline()
         else:
-            self.printLine('\tinline $TypePrefix$ReturnType $FunctionName ( $Arguments )',
+            self.printLine('\tinline $TypePrefix$ReturnType $FunctionName($Arguments)',
                 ReturnType = function.returnType,
                 FunctionName = function.name,
                 Arguments = arguments)
             self.printLine('\t{')
-            self.printLine('\t\treturn $FunctionPrefix$FunctionName( $Arguments );', FunctionName = function.cname, Arguments = paramNames)
+            self.printLine('\t\treturn $FunctionPrefix$FunctionName($Arguments);', FunctionName = function.cname, Arguments = paramNames)
             self.printLine('\t}')
             self.newline()
 

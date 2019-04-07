@@ -267,7 +267,6 @@ class ApiDefinition:
             version.getInterfaceNamesInto(self.interfaceNameCache)
         for extension in self.extensions.values():
             extension.getInterfaceNamesInto(self.interfaceNameCache)
-        print self.interfaceNameCache
 
     def getInterfaceNames(self):
         if self.interfaceNameCache is None:
@@ -275,7 +274,6 @@ class ApiDefinition:
         return self.interfaceNameCache
 
     def isInterfaceName(self, iname):
-        print 'isInterfaceName', iname
         return iname in self.getInterfaceNames()
 
     def isInterfaceReference(self, typeString):
