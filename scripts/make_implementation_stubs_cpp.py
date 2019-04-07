@@ -11,9 +11,10 @@ HEADER_START = \
 #ifndef $HeaderProtectMacro
 #define $HeaderProtectMacro
 
+#include "$CHeader"
 #include <stdexcept>
 #include <memory>
-#include "$CHeader"
+#include <atomic>
 
 namespace $Namespace
 {
@@ -42,7 +43,7 @@ public:
         auto old = strongCount.fetch_add(1, std::memory_order_relaxed);
 
         // Check again, for concurrency reasons.
-        if(strongCount == 0)
+        if(old == 0)
             return $ErrorInvalidOperation;
 
         return $ErrorOk;
@@ -63,18 +64,21 @@ public:
 
         // Should I delete the object?
         if(old == 1)
+        {
             delete object;
 
-        // Should I delete myself?
-        if(weakCount == 0)
-            delete this;
+            // Should I delete myself?
+            if(weakCount == 0)
+                delete this;
+        }
 
         return $ErrorOk;
     }
 
     bool weakLock()
     {
-        while((auto oldCount = strongCount.load()) != 0)
+        unsigned int oldCount;
+        while((oldCount = strongCount.load()) != 0)
         {
             if(strongCount.compare_exchange_weak(oldCount, oldCount + 1))
                 return true;
@@ -91,7 +95,7 @@ public:
     {
     }
 
-    $IcdDispatchTableType dispatchTable;
+    $IcdDispatchTableType *dispatchTable;
     T * object;
     std::atomic_uint strongCount;
     std::atomic_uint weakCount;
@@ -113,7 +117,7 @@ public:
 
 private:
     Counter *counter;
-    friend class WeakRef;
+    friend WeakRef;
 
 public:
     ref() : counter(nullptr) {}
@@ -124,7 +128,7 @@ public:
         *this = other;
     }
 
-    ref(const Counter *theCounter)
+    explicit ref(Counter *theCounter)
         : counter(theCounter)
     {
     }
@@ -155,14 +159,45 @@ public:
 
     Counter *disown()
     {
-        Counter result = counter;
+        Counter *result = counter;
         counter = nullptr;
         return result;
     }
 
-    T *operator->() const
+    template<typename U>
+    U *as() const
+    {
+        return static_cast<U*> (counter->object);
+    }
+
+    T *get() const
     {
         return counter->object; 
+    }
+
+    T *operator->() const
+    {
+        return get();
+    }
+
+    operator bool() const
+    {
+        return counter != nullptr;
+    }
+
+    bool operator==(const StrongRef &other) const
+    {
+        return counter == other.counter;
+    }
+
+    bool operator<(const StrongRef &other) const
+    {
+        return counter < other.counter;
+    }
+
+    size_t hash() const
+    {
+        return std::hash<Counter*> () (counter);
     }
 };
 
@@ -181,7 +216,7 @@ private:
     Counter *counter;
 
 public:
-    weak_ref(const StrongRef &ref)
+    explicit weak_ref(const StrongRef &ref)
     {
         counter = ref.counter;
         if(counter)
@@ -230,15 +265,35 @@ public:
 
         return counter->weakLock() ? StrongRef(counter) : StrongRef();
     }
+
+    bool operator==(const WeakRef &other) const
+    {
+        return counter == other.counter;
+    }
+
+    bool operator<(const WeakRef &other) const
+    {
+        return counter < other.counter;
+    }
+
+    size_t hash() const
+    {
+        return std::hash<Counter*> () (counter);
+    }
 };
 
-template<typename T, typename...Args>
-ref<T> makeObject(Args... args)
+template<typename I, typename T, typename...Args>
+inline ref<I> makeObjectWithInterface(Args... args)
 {
-    std::unique_ptr<T> object(new T(args));
-    std::unique_ptr<ref_counter<T>> counter(new ref_counter<T> ());
-    counter->object = object.release();
-    return ref<T> (counter.release());
+    std::unique_ptr<T> object(new T(args...));
+    std::unique_ptr<ref_counter<I>> counter(new ref_counter<I> (object.release()));
+    return ref<I> (counter.release());
+}
+
+template<typename T, typename...Args>
+inline ref<typename T::main_interface> makeObject(Args... args)
+{
+   return makeObjectWithInterface<typename T::main_interface, T> (args...);
 }
 
 /**
@@ -246,11 +301,33 @@ ref<T> makeObject(Args... args)
  */
 class base_interface
 {
-public
+public:
     virtual ~base_interface() {}
 };
 
 } // End of namespace $Namespace
+
+namespace std
+{
+template<typename T>
+struct hash<$Namespace::ref<T>>
+{
+    size_t operator()(const $Namespace::ref<T> &ref) const
+    {
+        return ref.hash();
+    }
+};
+
+template<typename T>
+struct hash<$Namespace::weak_ref<T>>
+{
+    size_t operator()(const $Namespace::ref<T> &ref) const
+    {
+        return ref.hash();
+    }
+};
+
+}
 
 """
 
@@ -263,8 +340,13 @@ DISPATCH_FILE_START = \
 """
 #include "$CPPHeader"
 
-#define asRef(O, I) (reinterpret_cast<$Namespace::ref<T> &> (*I))
-#define asRefCounter(O, I) (reinterpret_cast<$Namespace::ref_counter<T> *> (I))
+inline void* hideType(void *t)
+{
+	return t;
+}
+
+#define asRef(O, I) (*reinterpret_cast<aphy::ref<O> *> (hideType(&I)) )
+#define asRefCounter(O, I) (reinterpret_cast<$Namespace::ref_counter<O> *> (I))
 
 """
 
@@ -331,7 +413,7 @@ class MakeImplVisitor:
 
             'ErrorType': api.typePrefix + 'error',
             'IcdDispatchTableType': api.typePrefix + 'icd_dispatch',
-            'ErrorOk': api.constantPrefix + 'INVALID_OK',
+            'ErrorOk': api.constantPrefix + 'OK',
             'ErrorInvalidOperation': api.constantPrefix + 'INVALID_OPERATION',
             'ErrorNullPointer': api.constantPrefix + 'NULL_POINTER',
         }
@@ -376,7 +458,7 @@ class MakeHeaderVisitor(MakeImplVisitor):
         if typeString.endswith('**') and self.api.isInterfaceReference(typeString[:-1]):
             return typeString[:-2] + '_ref*'
         if self.api.isInterfaceReference(typeString):
-            return typeString[:-1] + '_ref'
+            return 'const ' + typeString[:-1] + '_ref &'
         return self.processText('$TypePrefix$Type', Type=typeString)
 
     def makeArgumentsString(self, arguments):
@@ -407,9 +489,9 @@ class MakeHeaderVisitor(MakeImplVisitor):
 
     def declareInterface(self, interface):
         self.printLine('struct $Name;', Name = interface.name)
-        self.printLine('typedef ref_counter<$Name> ${Name}_ptr;', Name = interface.name)
+        self.printLine('typedef ref_counter<$Name> *${Name}_ptr;', Name = interface.name)
         self.printLine('typedef ref<$Name> ${Name}_ref;', Name = interface.name)
-        self.printLine('typedef weakref<$Name> ${Name}_weakref;', Name = interface.name)
+        self.printLine('typedef weak_ref<$Name> ${Name}_weakref;', Name = interface.name)
         self.newline()
 
     def emitInterface(self, interface):
@@ -417,6 +499,7 @@ class MakeHeaderVisitor(MakeImplVisitor):
         self.printLine('struct $Name : base_interface', Name = interface.name)
         self.printLine('{')
         self.printLine('public:')
+        self.printLine('\ttypedef $Name main_interface;', Name = interface.name)
         for method in interface.methods:
             self.emitVirtualMethod(method)
         self.printLine('};')
