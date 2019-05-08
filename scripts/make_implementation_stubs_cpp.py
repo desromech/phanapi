@@ -31,6 +31,7 @@ public:
     ref_counter(T *cobject)
         : dispatchTable(&cppRefcountedDispatchTable), object(cobject), strongCount(1), weakCount(0)
     {
+        object->setRefCounterPointer(this);
     }
 
     $ErrorType retain()
@@ -139,6 +140,14 @@ public:
             counter->release();
     }
 
+    static StrongRef import(void *rawCounter)
+    {
+        auto castedCounter = reinterpret_cast<Counter*> (rawCounter);
+        if(castedCounter)
+            castedCounter->retain();
+        return StrongRef(castedCounter);
+    }
+
     StrongRef &operator=(const StrongRef &other)
     {
         auto newCounter = other.counter;
@@ -162,6 +171,18 @@ public:
         Counter *result = counter;
         counter = nullptr;
         return result;
+    }
+
+    Counter *disownedNewRef() const
+    {
+        if(counter)
+            counter->retain();
+        return counter;
+    }
+
+    Counter *asPtrWithoutNewRef() const
+    {
+        return counter;
     }
 
     template<typename U>
@@ -216,6 +237,9 @@ private:
     Counter *counter;
 
 public:
+    weak_ref()
+        : counter(nullptr) {}
+
     explicit weak_ref(const StrongRef &ref)
     {
         counter = ref.counter;
@@ -303,6 +327,20 @@ class base_interface
 {
 public:
     virtual ~base_interface() {}
+
+    void setRefCounterPointer(void *newPointer)
+    {
+        myRefCounter = newPointer;
+    }
+
+    template<typename T=base_interface>
+    const ref<T> &refFromThis()
+    {
+        return reinterpret_cast<const ref<T> &> (myRefCounter);
+    }
+
+private:
+    void *myRefCounter;
 };
 
 } // End of namespace $Namespace
@@ -345,7 +383,7 @@ inline void* hideType(void *t)
 	return t;
 }
 
-#define asRef(O, I) (*reinterpret_cast<aphy::ref<O> *> (hideType(&I)) )
+#define asRef(O, I) (*reinterpret_cast<$Namespace::ref<O> *> (hideType(&I)) )
 #define asRefCounter(O, I) (reinterpret_cast<$Namespace::ref_counter<O> *> (I))
 
 """
