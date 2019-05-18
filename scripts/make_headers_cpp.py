@@ -191,6 +191,18 @@ class MakeHeaderVisitor:
         self.emitExtensions(api.extensions)
         self.endHeader();
 
+    def convertMethodReturnType(self, typeString):
+        if self.api.isInterfaceReference(typeString):
+            return self.processText('${TypePrefix}ref<$TypePrefix$Type>', Type=typeString[:-1])
+        return self.processText('$TypePrefix$Type', Type=typeString)
+
+    def convertMethodArgumentType(self, typeString):
+        if typeString.endswith('**') and self.api.isInterfaceReference(typeString[:-1]):
+            return self.processText('${TypePrefix}ref<$TypePrefix$Type>*', Type=typeString[:-2])
+        if self.api.isInterfaceReference(typeString):
+            return self.processText('const ${TypePrefix}ref<$TypePrefix$Type>&', Type=typeString[:-1])
+        return self.processText('$TypePrefix$Type', Type=typeString)
+
     def emitMethodWrapper(self, function):
         allArguments = function.arguments
 
@@ -206,8 +218,9 @@ class MakeHeaderVisitor:
             self.printLine('\t}')
             self.newline()
         else:
-            self.printLine('\tinline $TypePrefix$ReturnType $FunctionName($Arguments)',
-                ReturnType = function.returnType,
+            returnType = self.convertMethodReturnType(function.returnType)
+            self.printLine('\tinline $ReturnType $FunctionName($Arguments)',
+                ReturnType = returnType,
                 FunctionName = function.name,
                 Arguments = arguments)
             self.printLine('\t{')
@@ -224,14 +237,21 @@ class MakeHeaderVisitor:
         for i in range(len(arguments)):
             arg = arguments[i]
             if i > 0: result += ', '
-            result += self.processText('$TypePrefix$Type $Name', Type = arg.type, Name = arg.name)
+            result += self.processText('$Type $Name', Type = self.convertMethodArgumentType(arg.type), Name = arg.name)
         return result
 
     def makeArgumentNamesString(self, arguments):
         result = 'this'
         for i in range(len(arguments)):
             arg = arguments[i]
-            result += ', %s' % arg.name
+            typeString = arg.type
+            if typeString.endswith('**') and self.api.isInterfaceReference(typeString[:-1]):
+                convertedArgument = self.processText('reinterpret_cast<$TypePrefix$Type> ($Arg)', Arg = arg.name, Type=typeString)
+            elif self.api.isInterfaceReference(typeString):
+                convertedArgument = '%s.get()' % arg.name
+            else:
+                convertedArgument = arg.name
+            result += ', %s' % convertedArgument
         return result
 
     def emitInterface(self, interface):
