@@ -37,24 +37,36 @@ def nameListToString(nameList):
 
 
 class MakePharoBindingsVisitor:
-    def __init__(self, outputDirectory, apiDefinition):
+    def __init__(self, outputDirectory, apiDefinition, forSqueak = False):
         self.outputDirectory = outputDirectory
         self.out = None
         self.variables = {}
         self.constants = {}
         self.typeBindings = {}
         self.interfaceTypeMap = {}
+        self.forSqueak = forSqueak
+        self.targetLanguage = 'Pharo'
+        if forSqueak:
+            self.targetLanguage = 'Squeak'
 
-        self.namespacePrefix = apiDefinition.getBindingProperty('Pharo', 'namespacePrefix')
+        self.namespacePrefix = apiDefinition.getBindingProperty(self.targetLanguage, 'namespacePrefix')
         self.interfaceBaseClassName = self.namespacePrefix + 'Interface'
         self.cbindingsBaseClassName = self.namespacePrefix + 'CBindingsBase'
 
-        self.generatedCodeCategory = apiDefinition.getBindingProperty('Pharo', 'package')
+        self.generatedCodeCategory = apiDefinition.getBindingProperty(self.targetLanguage, 'package')
         self.constantsClassName = self.namespacePrefix + 'Constants'
         self.typesClassName = self.namespacePrefix + 'Types'
         self.cbindingsClassName = self.namespacePrefix + 'CBindings'
         self.doItClassName = self.namespacePrefix
         self.startedExtensions = set()
+        self.bindingsPoolDictionaries = [self.constantsClassName, self.typesClassName]
+        self.externalStructureSuperClass = 'FFIExternalStructure'
+        self.externalUnionSuperClass = 'FFIExternalUnion'
+
+        if forSqueak:
+            self.bindingsPoolDictionaries = [self.constantsClassName]
+            self.externalStructureSuperClass = apiDefinition.getBindingProperty('Squeak', 'externalStructureSuperClass')
+            self.externalUnionSuperClass = apiDefinition.getBindingProperty('Squeak', 'externalUnionSuperClass')
 
     def processText(self, text, **extraVariables):
         t = Template(text)
@@ -98,26 +110,41 @@ class MakePharoBindingsVisitor:
             cname = self.processText("$ConstantPrefix$ConstantName", ConstantName=convertToUnderscore(constant.name))
             self.constants[cname] = constant.value
         cenumName = self.processText("$TypePrefix$EnumName", EnumName=enum.name)
-        self.typeBindings[cenumName] = '#int'
+        if self.forSqueak:
+            self.typeBindings[cenumName] = 'long'
+        else:
+            self.typeBindings[cenumName] = '#int'
 
     def visitTypedef(self, typedef):
         mappingType = typedef.ctype
         if mappingType.startswith('const '):
             mappingType = mappingType[len('const '):]
 
+        if self.forSqueak:
+            mappingType = mappingType.replace('long', 'longlong').replace('int', 'long').replace('char', 'byte')
         if mappingType.startswith('unsigned '):
             mappingType = 'u' + mappingType[len('unsigned '):]
 
         if mappingType.startswith('signed '):
             mappingType = mappingType[len('signed '):]
 
+        if self.forSqueak:
+            if mappingType.startswith('uchar') or mappingType.startswith('ubyte'):
+                mappingType = mappingType[1:]
+
         typedefName = self.processText("$TypePrefix$Name", Name=typedef.name)
-        self.typeBindings[typedefName] = "#'" + mappingType + "'"
+        if self.forSqueak:
+            self.typeBindings[typedefName] = mappingType
+        else:
+            self.typeBindings[typedefName] = "#'" + mappingType + "'"
 
     def visitInterface(self, interface):
         cname = typedefName = self.processText("$TypePrefix$Name", Name=interface.name)
         self.interfaceTypeMap[interface.name + '*'] = self.namespacePrefix + convertToCamelCase(interface.name)
-        self.typeBindings[cname] = "#'void'"
+        if self.forSqueak:
+            self.typeBindings[cname] = "void"
+        else:
+            self.typeBindings[cname] = "#'void'"
 
     def processFragment(self, fragment):
         # Visit the constants.
@@ -224,7 +251,15 @@ class MakePharoBindingsVisitor:
         self.printLine('"')
         self.printLine('\tsuper initialize.')
         self.newline()
-        self.printString(
+        if self.forSqueak:
+             self.printString(
+"""
+    self data pairsDo: [:k :v |
+        self classPool at: k put: v
+    ]
+""")
+        else:
+            self.printString(
 """
     self data pairsDo: [:k :v |
         self writeClassVariableNamed: k value: v
@@ -242,7 +277,33 @@ class MakePharoBindingsVisitor:
         self.printLine('\t)')
         self.endMethod()
 
+    def isValidIdentCharacter(self, character):
+        return ('a' <= character and character <= 'z') or \
+               ('A' <= character and character <= 'Z') or \
+               ('0' <= character and character <= '9') or \
+               character == '_'
+
+    def makeFullTypeName(self, rawTypeName):
+        baseTypeNameSize = 0
+        for i in range(len(rawTypeName)):
+            if self.isValidIdentCharacter(rawTypeName[i]):
+                baseTypeNameSize = i + 1
+            else:
+                break
+
+        baseTypeName = rawTypeName[0:baseTypeNameSize]
+        typeDecorators = rawTypeName[baseTypeNameSize:]
+        mappedBaseType = self.typeBindings[baseTypeName]
+        #print "'%s' %d '%s' '%s' -> '%s'" % (rawTypeName, baseTypeNameSize, baseTypeName, typeDecorators, mappedBaseType);
+        return mappedBaseType + typeDecorators
+
+    def makeFullTypeNameWithPrefix(self, rawTypeName):
+        return self.makeFullTypeName(self.api.typePrefix + rawTypeName)
+
     def emitTypeBindings(self):
+        if self.forSqueak:
+            return
+
         self.emitSubclass('SharedPool', self.typesClassName, [], list(self.typeBindings.keys()))
         self.beginMethod(self.typesClassName + ' class', 'initialize', 'initialize')
         self.printLine('"')
@@ -257,7 +318,7 @@ class MakePharoBindingsVisitor:
         self.endMethod()
 
     def emitCBindings(self, api):
-        self.emitSubclass(self.cbindingsBaseClassName, self.cbindingsClassName, [], [], [self.constantsClassName, self.typesClassName])
+        self.emitSubclass(self.cbindingsBaseClassName, self.cbindingsClassName, [], [], self.bindingsPoolDictionaries)
 
         for version in api.versions.values():
             # Emit the methods of the interfaces.
@@ -296,16 +357,24 @@ class MakePharoBindingsVisitor:
             selector += name + ': ' + name
 
         self.beginMethod(self.cbindingsClassName, category, selector)
-        self.printString("\t^ self ffiCall: #($TypePrefix$ReturnType $FunctionPrefix$FunctionName (",
-            ReturnType=method.returnType,
-            FunctionName=method.cname)
+        if self.forSqueak:
+           self.printString("\t<cdecl: $ReturnType '$FunctionPrefix$FunctionName' (",
+                ReturnType=self.makeFullTypeNameWithPrefix(method.returnType),
+                FunctionName=method.cname)
+        else:
+            self.printString("\t^ self ffiCall: #($TypePrefix$ReturnType $FunctionPrefix$FunctionName (",
+                ReturnType=method.returnType,
+                FunctionName=method.cname)
 
         first = True
         for arg in allArguments:
             if first:
                 first = False
             else:
-                self.printString(' , ')
+                if self.forSqueak:
+                    self.printString(' ')
+                else:
+                    self.printString(' , ')
 
             name = arg.name
             if name == 'self':
@@ -313,9 +382,16 @@ class MakePharoBindingsVisitor:
             argTypeString = arg.type
             if (arg.arrayReturn or arg.pointerList) and argTypeString.endswith('**'):
                 argTypeString = argTypeString[:-1]
-            self.printString("$TypePrefix$ArgType $ArgName", ArgType=argTypeString, ArgName=name)
+            if self.forSqueak:
+                self.printString("$ArgType", ArgType=self.makeFullTypeNameWithPrefix(argTypeString), ArgName=name)
+            else:
+                self.printString("$TypePrefix$ArgType $ArgName", ArgType=argTypeString, ArgName=name)
 
-        self.printLine(") )")
+        if self.forSqueak:
+            self.printLine(")>")
+            self.printLine("\t^ self externalCallFailed")
+        else:
+            self.printLine(") )")
         self.endMethod()
 
     def emitInterfaceClasses(self, api):
@@ -328,21 +404,32 @@ class MakePharoBindingsVisitor:
         cname = self.processText("$TypePrefix$AggregateName", AggregateName=aggregate.name)
         pharoName = self.namespacePrefix + convertToCamelCase(aggregate.name)
         self.typeBindings[cname] = pharoName
-        superClass = 'FFIExternalStructure'
+        superClass = self.externalStructureSuperClass
         if aggregate.isUnion():
-            superClass = 'FFIExternalUnion'
-        self.emitSubclass(superClass, pharoName, [], [], [self.constantsClassName, self.typesClassName])
+            superClass = self.externalUnionSuperClass
 
-        self.beginMethod(pharoName + ' class', 'definition', 'fieldsDesc')
-        self.printLine(
+        self.emitSubclass(superClass, pharoName, [], [], self.bindingsPoolDictionaries)
+
+        if self.forSqueak:
+            self.beginMethod(pharoName + ' class', 'definition', 'fields')
+            self.printLine(
+"""	"
+	self defineFields
+	"
+    ^ #(""")
+            for field in aggregate.fields:
+                self.printLine("\t\t($FieldName '$FieldType')", FieldType=self.makeFullTypeNameWithPrefix(field.type), FieldName=field.name)
+        else:
+            self.beginMethod(pharoName + ' class', 'definition', 'fieldsDesc')
+            self.printLine(
 """	"
 	self rebuildFieldAccessors
 	"
-	^ #(""")
-        for field in aggregate.fields:
-            self.printLine("\t\t $TypePrefix$FieldType $FieldName;", FieldType=field.type, FieldName=field.name)
+    ^ #(""")
+            for field in aggregate.fields:
+                self.printLine("\t\t $TypePrefix$FieldType $FieldName;", FieldType=field.type, FieldName=field.name)
 
-        self.printLine("\t\t)")
+        self.printLine("\t)")
         self.endMethod()
 
     def emitAggregates(self, api):
@@ -353,7 +440,8 @@ class MakePharoBindingsVisitor:
     def emitPoolInitializations(self, api, doItClassName):
         self.beginMethod(doItClassName + ' class', 'initialization', 'initializeConstants')
         self.printLine("\t<script>")
-        self.printLine("\t$Types initialize.", Types=self.typesClassName)
+        if not self.forSqueak:
+            self.printLine("\t$Types initialize.", Types=self.typesClassName)
         self.printLine("\t$Constants initialize.", Constants=self.constantsClassName)
         self.endMethod()
 
@@ -363,7 +451,10 @@ class MakePharoBindingsVisitor:
         for version in api.versions.values():
             for struct in version.agreggates:
                 pharoName = self.namespacePrefix + convertToCamelCase(struct.name)
-                self.printLine('\t$Structure rebuildFieldAccessors.', Structure=pharoName)
+                if self.forSqueak:
+                    self.printLine('\t$Structure defineFields.', Structure=pharoName)
+                else:
+                    self.printLine('\t$Structure rebuildFieldAccessors.', Structure=pharoName)
         self.endMethod()
 
     def emitBindingsInitializations(self, api, doItClassName):
@@ -480,10 +571,20 @@ class MakePharoBindingsVisitor:
         self.newline()
 
 
+def main():
+    arguments = sys.argv[1:]
+    if len(arguments) < 2:
+        print "make-headers [-squeak] <definitions> <output dir>"
+        return
+
+    forSqueak = False
+    if arguments[0] == '-squeak':
+        arguments = arguments[1:]
+        forSqueak = True
+
+    api = ApiDefinition.loadFromFileNamed(arguments[0])
+    visitor = MakePharoBindingsVisitor(arguments[1], api, forSqueak)
+    api.accept(visitor)
+
 if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        print "make-headers <definitions> <output dir>"
-    else:
-        api = ApiDefinition.loadFromFileNamed(sys.argv[1])
-        visitor = MakePharoBindingsVisitor(sys.argv[2], api)
-        api.accept(visitor)
+    main()
