@@ -262,7 +262,19 @@ PhaNAPITarArchiveMember >> readHeaderFrom: recordData [
 
 { #category : #reading }
 PhaNAPITarArchiveMember >> skipContentFrom: stream [
-	stream skip: (fileSize alignedTo: 512)
+	"Use next instead of skip as a bug workaround."
+	| skipStep skipCount |
+	skipStep := 4096.
+	skipCount := (fileSize alignedTo: 512).
+	[skipCount >= skipStep] whileTrue: [ 
+		stream next: skipStep.
+		skipCount := skipCount - skipStep
+	].
+
+	skipCount > 0 ifTrue: [ 
+		stream next: skipCount
+	].
+
 ]
 
 { #category : #reading }
@@ -270,7 +282,10 @@ PhaNAPITarArchiveMember >> skipPaddingFrom: stream [
 	| paddingSize paddedSize |
 	paddedSize := fileSize alignedTo: 512.
 	paddingSize := paddedSize - fileSize.
-	stream skip: paddingSize
+	paddingSize > 0 ifTrue: [
+		stream next: paddingSize
+	].
+
 ]
 
 { #category : #accessing }
