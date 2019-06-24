@@ -97,7 +97,7 @@ PhaNAPIBintray >> getVersion: versionName fileListForUser: userName repository: 
 { #category : #initialization }
 PhaNAPIBintray >> initialize [
 	super initialize.
-	currentPlatformMode := 'relwithdebinfo'
+	currentPlatformMode := 'release'
 	
 ]
 
