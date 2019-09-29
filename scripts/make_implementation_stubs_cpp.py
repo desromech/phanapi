@@ -201,7 +201,7 @@ public:
         return counter->object;
     }
 
-    operator bool() const
+    explicit operator bool() const
     {
         return counter != nullptr;
     }
@@ -209,6 +209,11 @@ public:
     bool operator==(const StrongRef &other) const
     {
         return counter == other.counter;
+    }
+
+    bool operator!=(const StrongRef &other) const
+    {
+        return counter != other.counter;
     }
 
     bool operator<(const StrongRef &other) const
@@ -293,6 +298,11 @@ public:
     bool operator==(const WeakRef &other) const
     {
         return counter == other.counter;
+    }
+
+    bool operator!=(const WeakRef &other) const
+    {
+        return counter != other.counter;
     }
 
     bool operator<(const WeakRef &other) const
@@ -590,7 +600,7 @@ class MakeDispatchVisitor(MakeImplVisitor):
     def emitCheckSelfInFunction(self, function):
         if function.returnType == "error":
             self.printLine("\tif(!self) return $ErrorNullPointer;")
-    
+
     def emitDispatchFunction(self, function):
         assert function.clazz is not None
 
