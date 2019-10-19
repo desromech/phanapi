@@ -300,6 +300,11 @@ class MakePharoBindingsVisitor:
     def makeFullTypeNameWithPrefix(self, rawTypeName):
         return self.makeFullTypeName(self.api.typePrefix + rawTypeName)
 
+    def makeFullReturnTypeNameWithPrefix(self, rawTypeName):
+        if rawTypeName == 'cstring':
+            return 'char*'
+        return self.makeFullTypeNameWithPrefix(rawTypeName)
+
     def emitTypeBindings(self):
         if self.forSqueak:
             return
@@ -359,7 +364,7 @@ class MakePharoBindingsVisitor:
         self.beginMethod(self.cbindingsClassName, category, selector)
         if self.forSqueak:
            self.printString("\t<cdecl: $ReturnType '$FunctionPrefix$FunctionName' (",
-                ReturnType=self.makeFullTypeNameWithPrefix(method.returnType),
+                ReturnType=self.makeFullReturnTypeNameWithPrefix(method.returnType),
                 FunctionName=method.cname)
         else:
             self.printString("\t^ self ffiCall: #($TypePrefix$ReturnType $FunctionPrefix$FunctionName (",
