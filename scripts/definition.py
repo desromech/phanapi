@@ -31,6 +31,7 @@ class Typedef:
     def __init__(self, xmlNode):
         self.name = xmlNode.get('name')
         self.ctype = xmlNode.get('ctype')
+        self.sysmelType = xmlNode.get('sysmelType', self.ctype)
 
     def accept(self, visitor):
         return visitor.visitTypedef(self)
@@ -146,6 +147,7 @@ class Interface:
     def __init__(self, xmlNode):
         self.name = xmlNode.get('name')
         self.methods = []
+        self.methodNames = set()
         self.loadMethods(xmlNode)
 
     def accept(self, visitor):
@@ -154,8 +156,12 @@ class Interface:
     def loadMethods(self, node):
         for child in node:
             if child.tag == 'method':
-                self.methods.append(Function(child, self))
+                method = Function(child, self)
+                self.methods.append(method)
+                self.methodNames.add(method.name)
 
+    def hasMethod(self, name):
+        return name in self.methodNames
 
 class ApiFragment:
     def __init__(self, xmlNode):
