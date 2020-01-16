@@ -251,10 +251,12 @@ class MakeSysmelBindingsVisitor:
             self.printLine("enum $Name valueType: Int32; values: #{", Name=enumName)
             for constant in enum.constants:
                 constantValue = constant.value
+                constantName = constant.name
+                if enum.optionalPrefix is not None and constantName.startswith(enum.optionalPrefix):
+					constantName = constantName[len(enum.optionalPrefix):]
                 if constantValue.startswith('0x'):
                     constantValue = '16r' + constantValue[2:]
-
-                self.printLine("\t$Name: $Value.", Name=constant.name, Value=constantValue)
+                self.printLine("\t$Name: $Value.", Name=constantName, Value=constantValue)
             self.printLine("}.")
             self.newline()
 

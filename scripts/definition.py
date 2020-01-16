@@ -88,6 +88,7 @@ class Enum:
         self.name = xmlNode.get('name')
         self.ctype = xmlNode.get('ctype')
         self.constants = []
+        self.optionalPrefix = xmlNode.get('optionalPrefix', None)
         self.loadConstants(xmlNode)
 
     def accept(self, visitor):
