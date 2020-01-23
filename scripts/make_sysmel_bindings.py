@@ -46,7 +46,7 @@ template SmartRefPtr(PT: Type)
 		o __private pointer_ := nil
 	}.
 
-	inline method _ => PointedType ref
+	inline const method _ => PointedType ref
 		:= pointer_ _.
 
 	inline const method getPointer => PointerType
@@ -130,6 +130,23 @@ def convertToCamelCase(s):
             result += c
     return result
 
+def convertToLowCamelCase(s):
+    result = ''
+    begin = True
+    first = True
+    for c in s:
+        if c == '_':
+            begin = True
+        elif begin:
+			if not first:
+				result += c.upper()
+			else:
+				result += c
+			begin = False
+			first = False
+        else:
+            result += c
+    return result
 
 def nameListToString(nameList):
     nameString = ''
@@ -270,6 +287,8 @@ class MakeSysmelBindingsVisitor:
                 constantName = constant.name
                 if enum.optionalPrefix is not None and constantName.startswith(enum.optionalPrefix):
 					constantName = constantName[len(enum.optionalPrefix):]
+                if enum.optionalSuffix is not None and constantName.endswith(enum.optionalSuffix):
+					constantName = constantName[:-len(enum.optionalSuffix)]
                 if constantValue.startswith('0x'):
                     constantValue = '16r' + constantValue[2:]
                 self.printLine("\t$Name: $Value.", Name=constantName, Value=constantValue)
@@ -428,19 +447,20 @@ class MakeSysmelBindingsVisitor:
         first = True
         for arg in method.arguments:
             name = arg.name
+            selectorName = convertToLowCamelCase(name)
             type = self.convertMethodArgumentType(arg.type)
             if first:
                 first = False
                 self.printString(': ($ArgName: $ArgType)', ArgName=name, ArgType=type)
             else:
-                self.printString(' $ArgName: ($ArgName: $ArgType)', ArgName=name, ArgType=type)
+                self.printString(' $ArgSelectorName: ($ArgName: $ArgType)', ArgSelectorName=selectorName, ArgName=name, ArgType=type)
 
         returnType = self.convertMethodReturnType(method.returnType)
         self.printLine(' ::=> $ReturnType', ReturnType=returnType)
 
         # Build the wrapper prologue.
         hasEnclosingParentheses = False
-        if method.returnType == "error":
+        if method.returnType == "error" and not method.errorIsNotException:
             self.printString('\t\t:= throwIfError: (')
             hasEnclosingParentheses = True
         elif self.api.isInterfaceReference(method.returnType):

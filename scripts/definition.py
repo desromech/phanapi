@@ -89,6 +89,7 @@ class Enum:
         self.ctype = xmlNode.get('ctype')
         self.constants = []
         self.optionalPrefix = xmlNode.get('optionalPrefix', None)
+        self.optionalSuffix = xmlNode.get('optionalSuffix', None)
         self.loadConstants(xmlNode)
 
     def accept(self, visitor):
@@ -131,6 +132,7 @@ class Function:
         self.name = xmlNode.get('name')
         self.cname = getOptionalAttribute(xmlNode, 'cname', self.name)
         self.returnType = xmlNode.get('returnType')
+        self.errorIsNotException = getOptionalAttribute(xmlNode, 'errorIsNotException', "false") != "false"
         self.clazz = clazz
         self.arguments = []
         self.loadArguments(xmlNode)
