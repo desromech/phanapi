@@ -64,6 +64,11 @@ PhaNAPILibrary >> macModuleName [
 	^ self shouldNotImplement
 ]
 
+{ #category : #'library path' }
+PhaNAPILibrary >> moduleName [
+	^ self ffiLibraryName
+]
+
 { #category : #'accessing platform' }
 PhaNAPILibrary >> unixModuleName [
 	^ self shouldNotImplement
