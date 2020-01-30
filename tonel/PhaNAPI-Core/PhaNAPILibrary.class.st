@@ -59,13 +59,43 @@ PhaNAPILibrary >> findLibraryPath [
 	^ self subclassResponsibility
 ]
 
+{ #category : #'library path' }
+PhaNAPILibrary >> libraryName [
+	^ self ffiLibraryName
+]
+
+{ #category : #'accessing platform' }
+PhaNAPILibrary >> macLibraryName [ 
+	^ self shouldNotImplement
+]
+
 { #category : #'accessing platform' }
 PhaNAPILibrary >> macModuleName [ 
 	^ self shouldNotImplement
 ]
 
+{ #category : #'library path' }
+PhaNAPILibrary >> moduleName [
+	^ self ffiLibraryName
+]
+
+{ #category : #'accessing platform' }
+PhaNAPILibrary >> unix32LibraryName [
+	^ self shouldNotImplement
+]
+
+{ #category : #'accessing platform' }
+PhaNAPILibrary >> unix64LibraryName [
+	^ self shouldNotImplement
+]
+
 { #category : #'accessing platform' }
 PhaNAPILibrary >> unixModuleName [
+	^ self shouldNotImplement
+]
+
+{ #category : #'accessing platform' }
+PhaNAPILibrary >> win32LibraryName [ 
 	^ self shouldNotImplement
 ]
 
