@@ -29,48 +29,34 @@ class ref_counter
 {
 public:
     ref_counter(T *cobject)
-        : dispatchTable(&cppRefcountedDispatchTable), object(cobject), strongCount(1), weakCount(0)
+        : dispatchTable(&cppRefcountedDispatchTable), object(cobject), strongCount(1), weakCount(1)
     {
         object->setRefCounterPointer(this);
     }
 
     $ErrorType retain()
     {
-        // Check once before doing the increase.
-        if(strongCount == 0)
+        // First sanity check.
+        if(strongCount.load(std::memory_order_acquire) == 0)
             return $ErrorInvalidOperation;
 
-        // Increase the referenece count.
-        auto old = strongCount.fetch_add(1, std::memory_order_relaxed);
-
-        // Check again, for concurrency reasons.
-        if(old == 0)
-            return $ErrorInvalidOperation;
-
+        // Increase the reference count.
+        strongCount.fetch_add(1, std::memory_order_acq_rel);
         return $ErrorOk;
     }
 
     $ErrorType release()
     {
         // First sanity check.
-        if(strongCount == 0)
+        if(strongCount.load(std::memory_order_acquire) == 0)
             return $ErrorInvalidOperation;
 
         // Decrease the strong count.
-        auto old = strongCount.fetch_sub(1, std::memory_order_relaxed);
-
-        // Check again, for concurrency reasons.
-        if(old == 0)
-            return $ErrorInvalidOperation;
-
-        // Should I delete the object?
+        auto old = strongCount.fetch_sub(1, std::memory_order_acq_rel);
         if(old == 1)
         {
             delete object;
-
-            // Should I delete myself?
-            if(weakCount == 0)
-                delete this;
+            weakRelease();
         }
 
         return $ErrorOk;
@@ -79,9 +65,9 @@ public:
     bool weakLock()
     {
         unsigned int oldCount;
-        while((oldCount = strongCount.load()) != 0)
+        while((oldCount = strongCount.load(std::memory_order_acquire)) != 0)
         {
-            if(strongCount.compare_exchange_weak(oldCount, oldCount + 1))
+            if(strongCount.compare_exchange_weak(oldCount, oldCount + 1, std::memory_order_acq_rel))
                 return true;
         }
 
@@ -90,10 +76,17 @@ public:
 
     void weakRetain()
     {
+        weakCount.fetch_add(1, std::memory_order_acq_rel);
     }
 
     void weakRelease()
     {
+        auto old = weakCount.fetch_sub(1, std::memory_order_acq_rel);
+        if(old == 1)
+        {
+            // Nobody else is referencing me.
+            delete this;
+        }
     }
 
     $IcdDispatchTableType *dispatchTable;
