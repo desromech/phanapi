@@ -12,9 +12,9 @@ namespace $Namespace definition:
 
 template SmartRefPtr(PT: Type)
 	:= struct definition: {
-	compileTimeConstant PointedType := PT.
-	compileTimeConstant PointerType := PointedType pointer.
-	compileTimeConstant SmartPointerType := SelfType.
+	compileTime constant PointedType := PT.
+	compileTime constant PointerType := PointedType pointer.
+	compileTime constant SmartPointerType := SelfType.
 
 	private field pointer_ type: PointerType.
 
@@ -405,7 +405,7 @@ class MakeSysmelBindingsVisitor:
         for version in api.versions.values():
             for interface in version.interfaces:
                 if interface.hasMethod('release') and interface.hasMethod('addReference'):
-                    self.printLine("compileTimeConstant ${InterfaceName}Ref := SmartRefPtr($InterfaceName).", InterfaceName=convertToCamelCase(interface.name))
+                    self.printLine("compileTime constant ${InterfaceName}Ref := SmartRefPtr($InterfaceName).", InterfaceName=convertToCamelCase(interface.name))
 
         self.newline()
 
