@@ -32,6 +32,8 @@ class Typedef:
         self.name = xmlNode.get('name')
         self.ctype = xmlNode.get('ctype')
         self.sysmelType = xmlNode.get('sysmelType', self.ctype)
+        self.pharoType = xmlNode.get('pharoType', self.ctype)
+        self.squeakType = xmlNode.get('squeakType', self.ctype)
 
     def accept(self, visitor):
         return visitor.visitTypedef(self)

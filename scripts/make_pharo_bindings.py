@@ -116,7 +116,10 @@ class MakePharoBindingsVisitor:
             self.typeBindings[cenumName] = '#int'
 
     def visitTypedef(self, typedef):
-        mappingType = typedef.ctype
+        mappingType = typedef.pharoType
+        if self.forSqueak:
+            mappingType = typedef.squeakType
+
         if mappingType.startswith('const '):
             mappingType = mappingType[len('const '):]
 
