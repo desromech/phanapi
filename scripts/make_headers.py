@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import re
 import sys
 
@@ -53,7 +53,7 @@ class MakeHeaderVisitor:
 
     def processText(self, text, **extraVariables):
         t = Template(text)
-        return t.substitute(**dict(self.variables.items() + extraVariables.items()))
+        return t.substitute(**dict(list(self.variables.items()) + list(extraVariables.items())))
 
     def write(self, text):
         self.out.write(text)
@@ -256,7 +256,7 @@ class MakeHeaderVisitor:
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
-        print "make-headers <definitions> <output dir>"
+        print("make-headers <definitions> <output dir>")
     else:
         api = ApiDefinition.loadFromFileNamed(sys.argv[1])
         with open(sys.argv[2] + '/' + api.headerFileName, 'w') as out:

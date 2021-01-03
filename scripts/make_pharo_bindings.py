@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import re
 import sys
 import os.path
@@ -70,7 +70,7 @@ class MakePharoBindingsVisitor:
 
     def processText(self, text, **extraVariables):
         t = Template(text)
-        return t.substitute(**dict(self.variables.items() + extraVariables.items()))
+        return t.substitute(**dict(list(self.variables.items()) + list(extraVariables.items())))
 
     def write(self, text):
         self.out.write(text)
@@ -582,7 +582,7 @@ class MakePharoBindingsVisitor:
 def main():
     arguments = sys.argv[1:]
     if len(arguments) < 2:
-        print "make-headers [-squeak] <definitions> <output dir>"
+        print("make-headers [-squeak] <definitions> <output dir>")
         return
 
     forSqueak = False

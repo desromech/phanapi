@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 import re
 import sys
 import os.path
@@ -11,90 +11,90 @@ namespace $Namespace definition:
 {
 
 template SmartRefPtr(PT: Type)
-	:= struct definition: {
-	compileTime constant PointedType := PT.
-	compileTime constant PointerType := PointedType pointer.
-	compileTime constant SmartPointerType := SelfType.
+    := struct definition: {
+    compileTime constant PointedType := PT.
+    compileTime constant PointerType := PointedType pointer.
+    compileTime constant SmartPointerType := SelfType.
 
-	private field pointer_ type: PointerType.
+    private field pointer_ type: PointerType.
 
-	meta extend: {
-		inline method for: (pointer: PointerType) ::=> SmartPointerType
-			:= SmartPointerType basicNewValue initializeWith: pointer; yourself.
-		macro method nil := ``(`,self basicNewValue).
-	}.
+    meta extend: {
+        inline method for: (pointer: PointerType) ::=> SmartPointerType
+            := SmartPointerType basicNewValue initializeWith: pointer; yourself.
+        macro method nil := ``(`,self basicNewValue).
+    }.
 
-	inline method finalize => Void := {
-		if: pointer_ ~~ nil then: {
-			pointer_ _ release.
-		}.
-	}.
+    inline method finalize => Void := {
+        if: pointer_ ~~ nil then: {
+            pointer_ _ release.
+        }.
+    }.
 
-	inline method initializeWith: (pointer: PointerType) ::=> Void := {
-		pointer_ := pointer
-	}.
+    inline method initializeWith: (pointer: PointerType) ::=> Void := {
+        pointer_ := pointer
+    }.
 
-	inline method initializeCopyingFrom: (o: SelfType const ref) ::=> Void := {
-		pointer_ := o __private pointer_.
-		if: pointer_ ~~ nil then: {
-			pointer_ _ addReference
-		}.
-	}.
+    inline method initializeCopyingFrom: (o: SelfType const ref) ::=> Void := {
+        pointer_ := o __private pointer_.
+        if: pointer_ ~~ nil then: {
+            pointer_ _ addReference
+        }.
+    }.
 
-	inline method initializeMovingFrom: (o: SelfType tempRef) ::=> Void := {
-		pointer_ := o __private pointer_.
-		o __private pointer_ := nil
-	}.
+    inline method initializeMovingFrom: (o: SelfType tempRef) ::=> Void := {
+        pointer_ := o __private pointer_.
+        o __private pointer_ := nil
+    }.
 
-	inline const method _ => PointedType ref
-		:= pointer_ _.
+    inline const method _ => PointedType ref
+        := pointer_ _.
 
-	inline const method getPointer => PointerType
-		:= pointer_.
+    inline const method getPointer => PointerType
+        := pointer_.
 
-	inline method reset: (newPointer: PointerType) ::=> Void := {
-		if: pointer_ ~~ nil then: {
-			pointer_ _ release
-		}.
+    inline method reset: (newPointer: PointerType) ::=> Void := {
+        if: pointer_ ~~ nil then: {
+            pointer_ _ release
+        }.
 
-		pointer_ := newPointer
-	}.
+        pointer_ := newPointer
+    }.
 
-	inline method reset => Void
-		:=  self reset: nil.
+    inline method reset => Void
+        :=  self reset: nil.
 
-	inline method assignValue: (o: SelfType const ref) ::=> SelfType const ref := {
-		let newPointer := o __private pointer_.
-		if: newPointer ~~ nil then: {
-			newPointer _ addReference
-		}.
-		if: pointer_ ~~ nil then: {
-			pointer_ _ release
-		}.
+    inline method assignValue: (o: SelfType const ref) ::=> SelfType const ref := {
+        let newPointer := o __private pointer_.
+        if: newPointer ~~ nil then: {
+            newPointer _ addReference
+        }.
+        if: pointer_ ~~ nil then: {
+            pointer_ _ release
+        }.
 
-		pointer_ := newPointer.
-		self
-	}.
+        pointer_ := newPointer.
+        self
+    }.
 
-	inline method assignValue: (o: SelfType tempRef) ::=> SelfType const ref := {
-		let newPointer := o __private pointer_.
-		o __private pointer_ := nil.
-		if: pointer_ ~~ nil then: {
-			pointer_ _ release
-		}.
+    inline method assignValue: (o: SelfType tempRef) ::=> SelfType const ref := {
+        let newPointer := o __private pointer_.
+        o __private pointer_ := nil.
+        if: pointer_ ~~ nil then: {
+            pointer_ _ release
+        }.
 
-		pointer_ := newPointer.
-		self
-	}.
+        pointer_ := newPointer.
+        self
+    }.
 
-	## Some convenience macros.
-	macro method isNil := ``(`,self getPointer isNil).
-	macro method isNotNil := ``(`,self getPointer isNotNil).
+    ## Some convenience macros.
+    macro method isNil := ``(`,self getPointer isNil).
+    macro method isNotNil := ``(`,self getPointer isNotNil).
 
-	macro method ifNil: nilAction := ``(`,self getPointer ifNil: `,nilAction).
-	macro method ifNil: nilAction ifNotNil: notNilAction := ``(`,self getPointer ifNil: `,nilAction ifNotNil: `, notNilAction).
-	macro method ifNotNil: notNilAction := ``(`,self getPointer ifNotNil: `,notNilAction).
-	macro method ifNotNil: notNilAction ifNil: nilAction  := ``(`,self getPointer ifNotNil: `,notNilAction ifNil: `,nilAction).
+    macro method ifNil: nilAction := ``(`,self getPointer ifNil: `,nilAction).
+    macro method ifNil: nilAction ifNotNil: notNilAction := ``(`,self getPointer ifNil: `,nilAction ifNotNil: `, notNilAction).
+    macro method ifNotNil: notNilAction := ``(`,self getPointer ifNotNil: `,notNilAction).
+    macro method ifNotNil: notNilAction ifNil: nilAction  := ``(`,self getPointer ifNotNil: `,notNilAction ifNil: `,nilAction).
 }.
 
 """
@@ -138,12 +138,12 @@ def convertToLowCamelCase(s):
         if c == '_':
             begin = True
         elif begin:
-			if not first:
-				result += c.upper()
-			else:
-				result += c
-			begin = False
-			first = False
+            if not first:
+                result += c.upper()
+            else:
+                result += c
+            begin = False
+            first = False
         else:
             result += c
     return result
@@ -172,7 +172,7 @@ class MakeSysmelBindingsVisitor:
 
     def processText(self, text, **extraVariables):
         t = Template(text)
-        return t.substitute(**dict(self.variables.items() + extraVariables.items()))
+        return t.substitute(**dict(list(self.variables.items()) + list(extraVariables.items())))
 
     def write(self, text):
         self.out.write(text)
@@ -286,9 +286,9 @@ class MakeSysmelBindingsVisitor:
                 constantValue = constant.value
                 constantName = constant.name
                 if enum.optionalPrefix is not None and constantName.startswith(enum.optionalPrefix):
-					constantName = constantName[len(enum.optionalPrefix):]
+                    constantName = constantName[len(enum.optionalPrefix):]
                 if enum.optionalSuffix is not None and constantName.endswith(enum.optionalSuffix):
-					constantName = constantName[:-len(enum.optionalSuffix)]
+                    constantName = constantName[:-len(enum.optionalSuffix)]
                 if constantValue.startswith('0x'):
                     constantValue = '16r' + constantValue[2:]
                 self.printLine("\t$Name: $Value.", Name=constantName, Value=constantValue)
@@ -534,7 +534,7 @@ class MakeSysmelBindingsVisitor:
 def main():
     arguments = sys.argv[1:]
     if len(arguments) < 2:
-        print "make-headers <definitions> <output dir>"
+        print("make-headers <definitions> <output dir>")
         return
 
     api = ApiDefinition.loadFromFileNamed(arguments[0])
