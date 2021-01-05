@@ -432,10 +432,10 @@ class MakeSysmelBindingsVisitor:
             return self.makeFullTypeName(type[:-1]) + "Ref const ref"
         return self.makeFullTypeName(type)
 
-    def convertMethodReturnType(self, type):
+    def convertMethodReturnType(self, type, allowError = False):
         if self.api.isInterfaceReference(type):
             return self.makeFullTypeName(type[:-1]) + "Ref"
-        if type == "error":
+        if type == "error" and not allowError:
             return "Void"
         return self.makeFullTypeName(type)
 
@@ -455,7 +455,7 @@ class MakeSysmelBindingsVisitor:
             else:
                 self.printString(' $ArgSelectorName: ($ArgName: $ArgType)', ArgSelectorName=selectorName, ArgName=name, ArgType=type)
 
-        returnType = self.convertMethodReturnType(method.returnType)
+        returnType = self.convertMethodReturnType(method.returnType, method.errorIsNotException)
         self.printLine(' ::=> $ReturnType', ReturnType=returnType)
 
         # Build the wrapper prologue.
