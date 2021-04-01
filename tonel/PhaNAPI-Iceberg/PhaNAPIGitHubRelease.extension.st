@@ -1,9 +1,14 @@
 Extension { #name : #PhaNAPIGitHubRelease }
 
 { #category : #'*PhaNAPI-Iceberg' }
+PhaNAPIGitHubRelease class >> fetchLibrary: libraryName fromIcebergRepoOfClass: class [
+	^ self new fetchLibrary: libraryName fromIcebergRepoOfClass: class
+]
+
+{ #category : #'*PhaNAPI-Iceberg' }
 PhaNAPIGitHubRelease >> fetchLibrary: libraryName fromIcebergRepoOfClass: class [
 	| packageName iceRepo remote projectName tagName owner |
-	packageName := class package.
+	packageName := class package name.
 	iceRepo := IceRepository registry
 		detect: [ :each | each includesPackageNamed: packageName ]
 		ifFound: [ :repo | repo ]
@@ -25,9 +30,4 @@ PhaNAPIGitHubRelease >> fetchLibrary: libraryName fromIcebergRepoOfClass: class 
 	owner := remote owner.
 	
 	^ self fetchLibrary: libraryName fromUser: owner repository: projectName release: tagName
-]
-
-{ #category : #'*PhaNAPI-Iceberg' }
-PhaNAPIGitHubRelease class >> fetchLibrary: libraryName fromIcebergRepoOfClass: class [
-	^ self new fetchLibrary: libraryName fromIcebergRepoOfClass: class
 ]

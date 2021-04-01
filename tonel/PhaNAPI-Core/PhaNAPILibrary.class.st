@@ -17,6 +17,11 @@ PhaNAPILibrary class >> fetchLibrary [
 ]
 
 { #category : #'library downloading' }
+PhaNAPILibrary class >> fetchLibraryInPostLoadAction [
+	^ self uniqueInstance fetchLibraryInPostLoadAction
+]
+
+{ #category : #'library downloading' }
 PhaNAPILibrary >> fetchLibrary [
 	"This method takes care of fetching the actual library. For example, if the
 	library is built using CI, and deployed into bintray, it could be fetched with
@@ -29,6 +34,15 @@ PhaNAPILibrary >> fetchLibrary [
 	"
 	
 	self subclassResponsibility
+]
+
+{ #category : #'library downloading' }
+PhaNAPILibrary >> fetchLibraryInPostLoadAction [
+	[
+		self fetchLibrary
+	] on: Error do: [ :e |
+		self inform: e asString
+	]
 ]
 
 { #category : #'library path' }
