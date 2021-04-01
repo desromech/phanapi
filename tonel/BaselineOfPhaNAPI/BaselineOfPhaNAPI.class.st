@@ -23,6 +23,9 @@ BaselineOfPhaNAPI >> baseline: spec [
 		spec 
 			package: #'PhaNAPI-GitHubRelease' with: [
 				spec requires: #(#'PhaNAPI-Core'). ].
+		spec 
+			package: #'PhaNAPI-Iceberg' with: [
+				spec requires: #(#'PhaNAPI-Core' #'PhaNAPI-GitHubRelease'). ].
     ].
 
 ]

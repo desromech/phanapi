@@ -1,3 +1,6 @@
+"
+I provide utilities for querying and downloading shared objects and DLLs that are uploaded to GitHub Releases.
+"
 Class {
 	#name : #PhaNAPIGitHubRelease,
 	#superclass : #PhaNAPIWebBinaryRepository,
@@ -10,10 +13,15 @@ Class {
 
 { #category : #'as yet unclassified' }
 PhaNAPIGitHubRelease class >> fetchLibrary: libraryName fromUser: userName repository: repository [
-	^ self new fetchLibrary: libraryName fromUser: userName repository: repository
+	^ self new fetchLibrary: libraryName fromUser: userName repository: repository release: nil
 ]
 
 { #category : #'as yet unclassified' }
+PhaNAPIGitHubRelease class >> fetchLibrary: libraryName fromUser: userName repository: repository release: releaseName [
+	^ self new fetchLibrary: libraryName fromUser: userName repository: repository release: releaseName
+]
+
+{ #category : #private }
 PhaNAPIGitHubRelease >> downloadAssetNamed: downloadFileName uri: downloadFileURI [
 	| downloadTarget |
 	downloadTarget := PhaNAPI uniqueInstance downloadsDirectory asFileReference / downloadFileName.
@@ -35,10 +43,10 @@ PhaNAPIGitHubRelease >> downloadAssetNamed: downloadFileName uri: downloadFileUR
 	^ downloadTarget
 ]
 
-{ #category : #'as yet unclassified' }
-PhaNAPIGitHubRelease >> downloadUser: userName repository: repository latestVersionForMode: mode platform: platform [
+{ #category : #private }
+PhaNAPIGitHubRelease >> downloadUser: userName repository: repository release: releaseName forMode: mode platform: platform [
 	| latestVersionFiles downloadFile |
-	latestVersionFiles := self getUser: userName repository: repository latestVersionForMode: mode platform: platform.
+	latestVersionFiles := self getUser: userName repository: repository release: releaseName forMode: mode platform: platform.
 	latestVersionFiles ifEmpty: [ 
 		self error: 'Failed to find library file.'
 	].
@@ -47,7 +55,7 @@ PhaNAPIGitHubRelease >> downloadUser: userName repository: repository latestVers
 	^ self downloadAssetNamed: downloadFile key uri: downloadFile value
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #private }
 PhaNAPIGitHubRelease >> extractFiles: fileList forMode: mode platform: platform [
 	^ fileList select: [ :keyValue |
 		| name |
@@ -56,30 +64,25 @@ PhaNAPIGitHubRelease >> extractFiles: fileList forMode: mode platform: platform 
 	]
 ]
 
-{ #category : #'as yet unclassified' }
-PhaNAPIGitHubRelease >> fetchLibrary: libraryName fromUser: userName repository: repository [
+{ #category : #API }
+PhaNAPIGitHubRelease >> fetchLibrary: libraryName fromUser: userName repository: repository release: releaseName [
 	| archive |
 	(PhaNAPI fullLibraryPathForCurrentPlatform: libraryName package: repository) ifNotNil: [
 		^ self
 	].
 
-	archive := self downloadUser: userName repository: repository latestVersionForMode: currentPlatformMode platform: Smalltalk os phanapiPlatformName.
+	archive := self downloadUser: userName repository: repository release: releaseName forMode: currentPlatformMode platform: Smalltalk os phanapiPlatformName.
 	PhaNAPI uniqueInstance decompressLibraryArchive: archive
 ]
 
-{ #category : #'as yet unclassified' }
+{ #category : #private }
 PhaNAPIGitHubRelease >> getFileListFromVersion: releaseVersionInfo [
 	^ (releaseVersionInfo at: 'assets') collect: [ :asset |
 		(asset at: 'name') -> (asset at: 'url')
 	]
 ]
 
-{ #category : #'as yet unclassified' }
-PhaNAPIGitHubRelease >> getLatestVersionFileListForUser: userName repository: repository [
-	^ self getFileListFromVersion: (self getLatestVersionForUser: userName repository: repository)
-]
-
-{ #category : #'as yet unclassified' }
+{ #category : #private }
 PhaNAPIGitHubRelease >> getLatestVersionForUser: userName repository: repository [
 	| uri |
 	uri := ('https://api.github.com/repos/:user/:repository/releases/latest'
@@ -88,10 +91,31 @@ PhaNAPIGitHubRelease >> getLatestVersionForUser: userName repository: repository
 	^ self requestJSON: uri
 ]
 
-{ #category : #'as yet unclassified' }
-PhaNAPIGitHubRelease >> getUser: userName repository: repository latestVersionForMode: mode platform: platform [
+{ #category : #private }
+PhaNAPIGitHubRelease >> getRelease: releaseName fileListForUser: userName repository: repository [
+	^ self getFileListFromVersion: (self getRelease: releaseName versionForUser: userName repository: repository)
+]
+
+{ #category : #private }
+PhaNAPIGitHubRelease >> getRelease: releaseName versionForUser: userName repository: repository [
+	| uri |
+	uri := releaseName ifNotNil: [ 
+		(('https://api.github.com/repos/:user/:repository/releases/tags/:tagName'
+			copyReplaceAll: ':user' with: userName)
+			copyReplaceAll: ':repository' with: repository)
+			copyReplaceAll: ':tagName' with: releaseName
+	] ifNil: [ 
+		('https://api.github.com/repos/:user/:repository/releases/latest'
+			copyReplaceAll: ':user' with: userName)
+			copyReplaceAll: ':repository' with: repository
+	].
+	^ self requestJSON: uri
+]
+
+{ #category : #private }
+PhaNAPIGitHubRelease >> getUser: userName repository: repository release: releaseName forMode: mode platform: platform [
 	| fileList |
-	fileList := self getLatestVersionFileListForUser: userName repository: repository.
+	fileList := self getRelease: releaseName fileListForUser: userName repository: repository.
 	^ self extractFiles: fileList forMode: mode platform: platform
 ]
 
