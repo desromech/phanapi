@@ -9,3 +9,8 @@ MacOSXPlatform >> dynamicLibraryPrefix [
 MacOSXPlatform >> dynamicLibrarySuffix [
 	^ '.dylib'
 ]
+
+{ #category : #'*PhaNAPI-Core' }
+MacOSXPlatform >> phanapiPlatformName [
+	^ 'osx-' , self phanapiArchitectureName
+]

@@ -5,7 +5,8 @@ Class {
 	#name : #PhaNAPITarArchive,
 	#superclass : #Archive,
 	#instVars : [
-		'decompressionPath'
+		'decompressionPath',
+		'lastLongLink'
 	],
 	#category : #'PhaNAPI-Core-Tar'
 }
@@ -54,6 +55,17 @@ PhaNAPITarArchive >> readFrom: aStreamOrFileName [
 PhaNAPITarArchive >> readTarMemberWithHeader: recordData from: stream [
 	| member |
 	member := PhaNAPITarArchiveMember new readHeaderFrom: recordData.
+	member typeFlag = $L ifTrue: [ 
+		member readContentFrom: stream.
+		lastLongLink := member decodeLongLink.
+		^ self
+	].
+
+	lastLongLink ifNotNil: [
+		member setLongLinkValue: lastLongLink.
+		lastLongLink := nil
+	].
+
 	decompressionPath ifNotNil: [
 		member readContentFrom: stream intoTargetPath: decompressionPath
 	] ifNil: [

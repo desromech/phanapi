@@ -4,3 +4,8 @@ Extension { #name : #WinPlatform }
 WinPlatform >> dynamicLibrarySuffix [
 	^ '.dll'
 ]
+
+{ #category : #'*PhaNAPI-Core' }
+WinPlatform >> phanapiPlatformName [
+	^ 'windows-' , self phanapiArchitectureName
+]

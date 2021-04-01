@@ -9,3 +9,12 @@ UnixPlatform >> dynamicLibraryPrefix [
 UnixPlatform >> dynamicLibrarySuffix [
 	^ '.so'
 ]
+
+{ #category : #'*PhaNAPI-Core' }
+UnixPlatform >> phanapiPlatformName [
+	(self version beginsWith: 'linux') ifTrue: [ 
+		^ 'linux-' , self phanapiArchitectureName
+	].
+
+	^ 'unix-' , self phanapiArchitectureName
+]

@@ -23,6 +23,7 @@ PhaNAPILibrary >> fetchLibrary [
 	the following example:
 	
 	PhaNAPIBintray fetchLibrary: 'Agpu' fromUser: 'ronsaldo' repository: 'abstract-gpu' package: 'lib'.
+	PhaNAPIGitHubRelease fetchLibrary: 'Agpu' fromUser: 'ronsaldo' repository: 'abstract-gpu'.
 	
 	This method can also be called in a package post load action.
 	"
