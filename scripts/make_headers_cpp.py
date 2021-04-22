@@ -86,6 +86,66 @@ public:
         return *this;
     }
 
+    bool operator==(const ${TypePrefix}ref<T> &other) const
+    {
+        return pointer == other.pointer;
+    }
+
+    bool operator==(const T *otherPointer) const
+    {
+        return pointer == otherPointer;
+    }
+
+    bool operator!=(const ${TypePrefix}ref<T> &other) const
+    {
+        return pointer != other.pointer;
+    }
+
+    bool operator!=(const T *otherPointer) const
+    {
+        return pointer != otherPointer;
+    }
+
+    bool operator<(const ${TypePrefix}ref<T> &other) const
+    {
+        return pointer < other.pointer;
+    }
+
+    bool operator<(const T *otherPointer) const
+    {
+        return pointer < otherPointer;
+    }
+
+    bool operator<=(const ${TypePrefix}ref<T> &other) const
+    {
+        return pointer < other.pointer;
+    }
+
+    bool operator<=(const T *otherPointer) const
+    {
+        return pointer <= otherPointer;
+    }
+
+    bool operator>(const ${TypePrefix}ref<T> &other) const
+    {
+        return pointer > other.pointer;
+    }
+
+    bool operator>(const T *otherPointer) const
+    {
+        return pointer > otherPointer;
+    }
+
+    bool operator>=(const ${TypePrefix}ref<T> &other) const
+    {
+        return pointer > other.pointer;
+    }
+
+    bool operator>=(const T *otherPointer) const
+    {
+        return pointer >= otherPointer;
+    }
+    
 	void reset(T *newPointer = nullptr)
 	{
 		if(pointer)
