@@ -34,7 +34,7 @@ PhaNAPI >> decompressLibraryArchive: archive [
 	(archiveFullName endsWith: '.tar') ifTrue: [
 		^ PhaNAPITarArchive unzip: archiveFileRef to: self librariesDirectory
 	].
-	(archiveFullName endsWith: '.tar.gz') ifTrue: [
+	((archiveFullName endsWith: '.tar.gz') or: [ archiveFullName endsWith: '.tgz' ]) ifTrue: [
 		^ PhaNAPITarGZipArchive unzip: archiveFileRef to: self librariesDirectory
 	].
 	self error: 'Unsupported library archive format.'

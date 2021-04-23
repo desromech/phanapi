@@ -5,7 +5,6 @@ Class {
 	#name : #PhaNAPIBintray,
 	#superclass : #PhaNAPIWebBinaryRepository,
 	#instVars : [
-		'platformMode',
 		'currentPlatformMode'
 	],
 	#category : #'PhaNAPI-Bintray'
@@ -54,7 +53,7 @@ PhaNAPIBintray >> fetchLibrary: libraryName fromUser: userName repository: repos
 		^ self
 	].
 	
-	archive := self downloadUser: userName repository: repository package: package latestVersionForMode: currentPlatformMode platform: Smalltalk os bintrayPlatformName.
+	archive := self downloadUser: userName repository: repository package: package latestVersionForMode: currentPlatformMode platform: Smalltalk os phanapiPlatformName.
 	PhaNAPI uniqueInstance decompressLibraryArchive: archive
 ]
 

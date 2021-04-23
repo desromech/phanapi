@@ -21,6 +21,11 @@ Class {
 	#category : #'PhaNAPI-Core-Tar'
 }
 
+{ #category : #'as yet unclassified' }
+PhaNAPITarArchiveMember >> decodeLongLink [
+	^ content utf8Decoded
+]
+
 { #category : #accessing }
 PhaNAPITarArchiveMember >> deviceMajorNumber [
 	^ deviceMajorNumber
@@ -258,6 +263,11 @@ PhaNAPITarArchiveMember >> readHeaderFrom: recordData [
 		deviceMinorNumber := self readFrom: in integerWithSize: 8.
 		fileName := (self readFrom: in stringWithSize: 155) , fileName.
 	]
+]
+
+{ #category : #initialization }
+PhaNAPITarArchiveMember >> setLongLinkValue: longLinkValue [
+	fileName := longLinkValue
 ]
 
 { #category : #reading }
