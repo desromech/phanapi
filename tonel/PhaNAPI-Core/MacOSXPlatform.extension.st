@@ -12,5 +12,5 @@ MacOSXPlatform >> dynamicLibrarySuffix [
 
 { #category : #'*PhaNAPI-Core' }
 MacOSXPlatform >> phanapiPlatformName [
-	^ 'osx-' , self phanapiArchitectureName
+	^ 'osx-universal'
 ]
