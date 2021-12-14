@@ -9,10 +9,8 @@ BaselineOfPhaNAPI >> baseline: spec [
 	<baseline>
 	spec for: #'common' do: [
 		spec blessing: #'baseline'.
-		spec 
-			baseline: #'NeoJSON' with: [
-				spec
-				repository: 'github://svenvc/NeoJSON:v17/repository' ].
+		spec baseline: #'NeoJSON' with: [ spec repository: 'github://svenvc/NeoJSON/repository' ].
+		spec baseline: #'ZincHTTPComponents' with: [ spec repository: 'github://svenvc/zinc/repository' ].
 
 		spec 
 			package: #'PhaNAPI-Core' with: [

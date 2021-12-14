@@ -28,16 +28,20 @@ PhaNAPIGitHubRelease >> downloadAssetNamed: downloadFileName uri: downloadFileUR
 	downloadTarget parent ensureCreateDirectory.
 	downloadTarget exists ifTrue: [ downloadTarget delete ].
 
-	(self doHTTPRequest: [
-		(ZnClient new
-			"If we do not set the accept header, we might get a JSON describing the asset."
-			accept: 'application/octet-stream';
-			url: downloadFileURI;
-			followRedirects: true;
-			signalProgress: true;
-			downloadTo: downloadTarget) 
-	] withProgress: ('Downloading {1} ...' format: {downloadTarget basename})) ifFalse: [ 
-		self error: 'Failed to download the requested library.'
+	ZnOptions globalDefault clone
+		at: #queryKeyValueSafeSet put: (ZnOptions queryKeyValueSafeSet \ '/;');
+		during: [
+			(self doHTTPRequest: [
+			(ZnClient new
+				"If we do not set the accept header, we might get a JSON describing the asset."
+				accept: 'application/octet-stream';
+				url: downloadFileURI;
+				followRedirects: true;
+				signalProgress: true;
+				downloadTo: downloadTarget) 
+		] withProgress: ('Downloading {1} ...' format: {downloadTarget basename})) ifFalse: [ 
+			self error: 'Failed to download the requested library.'
+		].
 	].
 
 	^ downloadTarget
