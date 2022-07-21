@@ -9,14 +9,11 @@ BaselineOfPhaNAPI >> baseline: spec [
 	<baseline>
 	spec for: #'common' do: [
 		spec blessing: #'baseline'.
-		spec 
-			package: #'PhaNAPI-Core' with: [].
-		spec 
-			package: #'PhaNAPI-GitAssets' with: [
-				spec requires: #(#'PhaNAPI-Core'). ].
+		spec package: #'PhaNAPI-GitAssets'.
     ].
 
 	spec for: #pharo do: [
+		spec package: #'PhaNAPI-Core' with: [].
 		spec 
 			package: #'PhaNAPI-Bintray' with: [
 				spec requires: #(#'PhaNAPI-Core'). ].
@@ -31,7 +28,7 @@ BaselineOfPhaNAPI >> baseline: spec [
 	spec for: #squeak do: [
 		spec 
 			package: #'PhaNAPI-Squeak' with: [
-				spec requires: #(#'PhaNAPI-Core'). ].
+				spec requires: #(#'PhaNAPI-GitAssets'). ].
     ].
 
 ]

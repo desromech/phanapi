@@ -8,7 +8,7 @@ Class {
 }
 
 { #category : #assets }
-PhaNAPISqueakGitHubProjectAssetsLocator >> attemptToFindAssetsForThisSessionSpecifiedIn: assetsSpecClass [
+PhaNAPISqueakGitHubProjectAssetsLocator class >> attemptToFindAssetsForThisSessionSpecifiedIn: assetsSpecClass [
 	| githubCacheLocation repoName repoOwners repoBranch |
 	githubCacheLocation := FSLocator imageDirectory / 'github-cache'.
 	repoName := assetsSpecClass defaultGithubRepositoryName.
