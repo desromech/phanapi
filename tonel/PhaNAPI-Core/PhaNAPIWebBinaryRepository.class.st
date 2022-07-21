@@ -33,7 +33,7 @@ PhaNAPIWebBinaryRepository >> requestJSON: uri [
 
 { #category : #'web requests' }
 PhaNAPIWebBinaryRepository >> requestJSON: uri progressName: progressName [
-	^ self doHTTPRequest: [NeoJSONReader fromString: (ZnClient new
+	^ self doHTTPRequest: [STONJSON fromString: (ZnClient new
 		beOneShot;
 		signalProgress: true;
 		get: uri) contents
