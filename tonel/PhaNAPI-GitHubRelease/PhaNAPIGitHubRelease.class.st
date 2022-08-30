@@ -81,7 +81,7 @@ PhaNAPIGitHubRelease >> fetchLibrary: libraryName fromUser: userName repository:
 
 { #category : #private }
 PhaNAPIGitHubRelease >> getFileListFromVersion: releaseVersionInfo [
-	^ (releaseVersionInfo at: 'assets') collect: [ :asset |
+	^ (releaseVersionInfo at: 'assets' ifAbsent: [#()]) collect: [ :asset |
 		(asset at: 'name') -> (asset at: 'url')
 	]
 ]
