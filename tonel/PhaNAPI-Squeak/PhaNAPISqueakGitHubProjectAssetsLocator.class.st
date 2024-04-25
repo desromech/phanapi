@@ -22,6 +22,15 @@ PhaNAPISqueakGitHubProjectAssetsLocator class >> attemptToFindAssetsForThisSessi
 	
 	repoOwners do: [ :owner |
 		| cloneFolderName branchDirectory |
+		branchDirectory := githubCacheLocation / owner / repoName / repoBranch.
+		(branchDirectory exists and: [ branchDirectory isDirectory ]) ifTrue: [ 
+			branchDirectory children do: [ :eachChild |
+				eachChild isDirectory ifTrue: [
+					^ assetsSpecClass adjustLocation: eachChild asFileReference
+				]
+			]
+		].
+		
 		cloneFolderName := owner , '#' , repoName.
 		branchDirectory := githubCacheLocation / cloneFolderName / repoBranch.
 		(branchDirectory exists and: [ branchDirectory isDirectory ]) ifTrue: [ 
