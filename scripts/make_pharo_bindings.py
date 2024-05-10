@@ -123,6 +123,7 @@ class MakePharoBindingsVisitor:
         if mappingType.startswith('const '):
             mappingType = mappingType[len('const '):]
 
+        mappingType = mappingType.replace('long long', 'longlong')
         if self.forSqueak:
             mappingType = mappingType.replace('long', 'longlong').replace('int', 'long').replace('char', 'byte')
         if mappingType.startswith('unsigned '):
